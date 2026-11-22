@@ -14,7 +14,7 @@ find_package(Wireshark CONFIG REQUIRED)
 message(STATUS "Wireshark config dir:  ${Wireshark_DIR}")
 message(STATUS "Wireshark config file: ${Wireshark_CONFIG}")
 
-set(SOURCES bitcoinv2.cpp)
+set(SOURCES src/bitcoinv2.cpp)
 
 # Do not switch to shared. Wireshark needs modules
 add_library(${PROJECT_NAME} MODULE ${SOURCES})
