@@ -19,20 +19,26 @@ env:
    WIRESHARK_BRANCH: release-4.4
 
 jobs:
-   standalone:
-      name: Build standalone plugin
+  standalone:
+    name: Build standalone plugin
       runs-on: ubuntu-22.04
       steps:
-         - name: Checkout plug-in
-           uses: actions/checkout@v3
+        - name: Checkout plug-in
+          uses: actions/checkout@v3
 
-         - name: Install dependencies for a standalone build
-           run: |
-              sudo add-apt-repository ppa:wireshark-dev/stable -y
-              sudo apt-get update -qq
-              export DEBIAN_FRONTEND=noninteractive
-              echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
-              sudo apt-get install -yqq cmake wireshark-dev
+        - name: Install dependencies for a standalone build
+          run: |
+            sudo add-apt-repository ppa:wireshark-dev/stable -y
+            sudo apt-get update -qq
+            export DEBIAN_FRONTEND=noninteractive
+            echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
+            sudo apt-get install -yqq cmake wireshark-dev
 
-         - name: Build standalone
-           run: cmake --workflow release
+        - name: Build standalone
+          run: cmake --workflow release
+
+        - name: Upload Ubuntu packages
+          uses: actions/upload-artifact@v2
+          with:
+            name: binaries
+            path: install/release/lib/bitcoinv2.so
