@@ -1,0 +1,38 @@
+# GitHub Action workflows to build and test the plug-in on Ubuntu
+#
+# Adapted from  https://github.com/ChargePoint/wireshark-v2g/blob/main/.github/workflows/ubuntu.yml
+# Which was adapted from Wireshark's repository https://gitlab.com/wireshark/wireshark/-/tree/master/.github/workflows
+
+name: Build Ubuntu plug-in
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+  workflow_dispatch:
+
+env:
+   WIRESHARK_BRANCH: release-4.4
+
+jobs:
+   standalone:
+      name: Build standalone plugin
+      runs-on: ubuntu-22.04
+      steps:
+         - name: Checkout plug-in
+           uses: actions/checkout@v3
+
+         - name: Install dependencies for a standalone build
+           run: |
+              sudo add-apt-repository ppa:wireshark-dev/stable -y
+              sudo apt-get update -qq
+              export DEBIAN_FRONTEND=noninteractive
+              echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
+              sudo apt-get install -yqq cmake wireshark-dev
+
+         - name: Build standalone
+           run: cmake --workflow release
