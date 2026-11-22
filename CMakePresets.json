@@ -1,0 +1,98 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/install/${presetName}"
+        },
+        {
+            "name": "debug",
+            "inherits": "base",
+            "displayName": "Bitcoin v2 (debug)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "base",
+            "displayName": "Bitcoin v2",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "release-system",
+            "inherits": "base",
+            "displayName": "Bitcoin v2",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "INSTALL_ON_SYSTEM": true
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "targets": "install",
+            "jobs": 0
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "targets": "install",
+            "jobs": 0
+        },
+        {
+            "name": "release-system",
+            "configurePreset": "release-system",
+            "targets": "install",
+            "jobs": 0
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "debug"
+                },
+                {
+                    "type": "build",
+                    "name": "debug"
+                }
+            ]
+        },
+        {
+            "name": "release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "release"
+                },
+                {
+                    "type": "build",
+                    "name": "release"
+                }
+            ]
+        },
+        {
+            "name": "release-system",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "release-system"
+                },
+                {
+                    "type": "build",
+                    "name": "release-system"
+                }
+            ]
+        }
+    ]
+}
