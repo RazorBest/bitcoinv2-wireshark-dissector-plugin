@@ -15,9 +15,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-env:
-   WIRESHARK_BRANCH: release-4.4
-
 jobs:
   sytem-build:
     name: Build plugin based on system-installed wireshark
@@ -46,6 +43,24 @@ jobs:
   repo-build:
     name: Build plugin based on repo-fetched wireshark
     runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: true
+      matrix:
+        wireshark-branch:
+          - release-3.0
+          - release-3.2
+          - release-3.4
+          - release-3.6
+          - release-4.0
+          - release-4.2
+          - release-4.4
+          - release-4.6
+          - release-5.0
+
+    env:
+       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
+
     steps:
       - name: Install dependencies for the wireshark build
         run: |
@@ -89,9 +104,9 @@ jobs:
       - name: Build plugin depending on repo wireshark
         run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
 
-      - name: Upload compiled files
+      - name: Upload compiled file
         uses: actions/upload-artifact@v7
         with:
-          name: binaries/wireshark-${{ env.WIRESHARK_BRANCH }}
+          name: binary-wireshark-${{ env.WIRESHARK_BRANCH }}
           path: install/release/lib/bitcoinv2.so
 
