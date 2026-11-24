@@ -57,13 +57,6 @@ jobs:
       - name: Mkdir
         run: mkdir build
 
-      - name: Cmake
-        run: cmake -A x64 ..
-        env:
-           PLATFORM: x64
-           QT5_BASE_DIR: C:/Qt/${{ env.WIRESHARK_QT_VERSION }}/msvc2019_64
-        working-directory: build
-
       - name: Build wireshark
         run: |
           cd wireshark
