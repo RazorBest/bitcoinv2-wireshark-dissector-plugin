@@ -25,7 +25,9 @@ jobs:
     steps:
       - name: Install dependencies for the wireshark build
         shell: bash
-        run: choco install -y --force --no-progress cmake
+        run: |
+          choco install -y --force --no-progress cmake
+          vcpkg install glib:x64-windows
 
       - name: Install winflexbison3
         shell: bash
