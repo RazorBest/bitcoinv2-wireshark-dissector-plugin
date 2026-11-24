@@ -48,8 +48,8 @@ jobs:
       fail-fast: true
       matrix:
         wireshark-branch:
-          - release-3.0
-          - release-3.2
+          - master-3.0
+          - master-3.2
           - release-3.4
           - release-3.6
           - release-4.0
