@@ -43,7 +43,7 @@ jobs:
 
       - name: Checkout Wireshark
         run: |
-          mkdir wireshark
+          mkdir wireshark -Force
           cd wireshark
           git init
           git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
