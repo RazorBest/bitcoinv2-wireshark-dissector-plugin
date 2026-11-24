@@ -77,7 +77,7 @@ jobs:
           cmake --install build --prefix ./install --component Development
 
       - name: Build plugin depending on repo wireshark
-        run: cmake -DWireshark_DIR=./wireshark/install/lib/cmake/wireshark/ --workflow release
+        run: Wireshark_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
 
       - name: Copy plugin so
         run: |
