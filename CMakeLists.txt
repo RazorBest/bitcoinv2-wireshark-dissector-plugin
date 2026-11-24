@@ -42,8 +42,6 @@ else()
     set(LIBRARY_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-find_package(Wireshark)
-
 if (Wireshark_FOUND)
 
     message(STATUS "Wireshark found in ${Wireshark_LIB_DIR}")
