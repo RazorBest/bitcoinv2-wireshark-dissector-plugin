@@ -13,7 +13,8 @@
             "inherits": "base",
             "displayName": "Bitcoin v2 (debug)",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}"
             }
         },
         {
@@ -21,7 +22,8 @@
             "inherits": "base",
             "displayName": "Bitcoin v2",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}"
             }
         },
         {
@@ -30,6 +32,7 @@
             "displayName": "Bitcoin v2",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
                 "INSTALL_ON_SYSTEM": true
             }
         }
