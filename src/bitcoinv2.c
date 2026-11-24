@@ -7,7 +7,12 @@
 // Contains WS_VERSION and WS_VERSION_NUM
 #include <ws_version.h>
 
-/* Top-level header: wireshark.h arrived in 3.7/4.0 */
+#define WS_VERSION_NUM(maj, min, mic) (((maj) * 10000) + ((min) * 100) + (mic))
+#define WS_VERSION WS_VERSION_NUM(WIRESHARK_VERSION_MAJOR, \
+                                  WIRESHARK_VERSION_MINOR, \
+                                  WIRESHARK_VERSION_MICRO)
+
+// Top-level header: wireshark.h arrived in 3.7/4.0
 #if WS_VERSION >= WS_VERSION_NUM(4, 0, 0)
   #include <wireshark.h>
 #else
