@@ -24,9 +24,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Install dependencies for the wireshark build
+        shell: bash
         run: choco install -y --force --no-progress cmake
 
       - name: Install winflexbison3
+        shell: bash
         run: choco install -y --force --no-progress winflexbison3 --version 2.5.18.20190508
 
       - name: Add msbuild to PATH
@@ -38,6 +40,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Checkout Wireshark
+        shell: bash
         run: |
           New-Item -ItemType Directory -Force -Path "$PWD\wireshark"
           cd wireshark
@@ -48,6 +51,7 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Copy custom wireshark build files
+        shell: bash
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
@@ -55,9 +59,11 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Mkdir
+        shell: bash
         run: mkdir build
 
       - name: Build wireshark
+        shell: bash
         run: |
           cd wireshark
           cmake --preset build-for-plugin
@@ -67,14 +73,18 @@ jobs:
           cmake --install build --prefix ./install --component Development
 
       - name: Build plugin depending on repo wireshark
+        shell: bash
         run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
 
       - name: ls install
+        shell: bash
         run: ls install
 
       - name: Move plugin dll
+        shell: bash
         run: |
            mv build/run/RelWithDebInfo/plugins/3.6/epan/sap.dll exe/sap.dll
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v7
         with:
