@@ -3,7 +3,7 @@
 # Adapted from  https://github.com/ChargePoint/wireshark-v2g/blob/main/.github/workflows/ubuntu.yml
 # Which was adapted from Wireshark's repository https://gitlab.com/wireshark/wireshark/-/tree/master/.github/workflows
 
-name: Build Ubuntu plug-in
+name: Build plug-in on Ubuntu
 
 on:
   push:
@@ -92,6 +92,6 @@ jobs:
       - name: Upload compiled files
         uses: actions/upload-artifact@v7
         with:
-          name: binaries
+          name: binaries/wireshark-${{ env.WIRESHARK_BRANCH }}
           path: install/release/lib/bitcoinv2.so
 
