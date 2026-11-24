@@ -62,10 +62,10 @@ jobs:
        WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
 
     steps:
-      - name: Install dependencies for the wireshark build
+      - name: Install CMake
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -yqq cmake libglib2.0-dev libc-ares-dev libpcap-dev make libgcrypt-dev flex libxml2-dev
+          sudo apt-get install -yqq cmake
 
       - name: Checkout plug-in
         uses: actions/checkout@v7
@@ -76,6 +76,12 @@ jobs:
         with:
           path: wireshark/install/
           key: wireshark-${{ runner.os }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
+      - name: Install dependencies for the wireshark build
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq libglib2.0-dev libc-ares-dev libpcap-dev make libgcrypt-dev flex libxml2-dev
 
       - name: Git clone wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
