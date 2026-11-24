@@ -42,7 +42,7 @@ jobs:
       - name: Checkout Wireshark
         shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path "$PWD\wireshark"
+          mkdir wireshark
           cd wireshark
           Get-Location
           Get-ChildItem
