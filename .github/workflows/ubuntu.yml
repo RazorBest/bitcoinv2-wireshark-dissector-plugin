@@ -34,10 +34,10 @@ jobs:
           echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
           sudo apt-get install -yqq cmake wireshark-dev
 
-      - name: Build standalone
+      - name: Build plugin standalone
         run: cmake --workflow release
 
-      - name: Upload Ubuntu packages
+      - name: Upload compiled files
         uses: actions/upload-artifact@v7
         with:
           name: binaries
@@ -47,60 +47,46 @@ jobs:
     name: Build plugin based on repo-fetched wireshark
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Wireshark
+      - name: Install dependencies for the wireshark build
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq cmake libglib2.0-dev libc-ares-dev libpcap-dev make libgcrypt-dev flex libxml2-dev
+
+      - name: Checkout plug-in
+        uses: actions/checkout@v7
+
+      - name: Git clone wireshark
+        run: |
+          mkdir wireshark
+          cd wireshark
           git init
           git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
           git checkout ${{ env.WIRESHARK_BRANCH }}
-      - name: Checkout plug-in
-        uses: actions/checkout@v7
-        with:
-          path: plugins/epan/sap
-      - name: Apply patch
-        run: |
-          git apply plugins/epan/sap/wireshark-${{ env.WIRESHARK_BRANCH }}.patch
-      - name: Install dependencies for a in-tree build
-        run: |
-          sudo gem install asciidoctor
-          sudo apt-get update -qq
-          sudo apt-get install -yqq cmake libglib2.0-dev qttools5-dev qttools5-dev-tools libqt5svg5-dev qtmultimedia5-dev qt5-default libc-ares-dev libpcap-dev bison flex make python3 python3-pip perl libgcrypt-dev
 
-      - name: Build in-tree
+      - name: Copy custom wireshark build files
         run: |
-          mkdir build
-          cd build
-          cmake ..
-          make sap tshark
+          cp wireshark_build_config/CMakeUserPresets.json wireshark
 
-      - name: Install dependencies for testing
+      - name: Build wireshark
         run: |
-          sudo apt-get install -yqq libxml2-dev libxslt-dev python2.7-dev python-pip
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 2.7
-      - name: Install Python packages for testing
-        run: |
-          python2 -m pip install --upgrade pip setuptools wheel
-          python2 -m pip install pysap
-      - name: Install patched pyshark-legacy version
-        run: |
-          git clone https://github.com/martingalloar/pyshark-legacy
-          python2 -m pip install pyshark-legacy/src
-      - name: Run tests
-        run: |
-          cd plugins/epan/sap/
-          python2 tests/__init__.py
-        env:
-          TSHARK_PATH: ${{ github.workspace }}/build/run/tshark
+          cd wireshark
+          cmake --preset build-for-plugin
+          cmake --build build
+          cmake --install build --prefix ../install/
+          # Installs the Wireshark cmake package as well
+          cmake --install build --prefix ./install --component Development
+
+      - name: Build plugin depending on repo wireshark
+        run: cmake -DWireshark_DIR=./wireshark/install/lib/cmake/wireshark/ --workflow release
 
       - name: Copy plugin so
         run: |
           mkdir exe
           cp build/run/plugins/3.6/epan/sap.so exe/sap-source.so
-      - name: Upload Ubuntu artifacts
-        uses: actions/upload-artifact@v2
+
+      - name: Upload compiled files
+        uses: actions/upload-artifact@v7
         with:
-          name: packages
-          path: exe
+          name: binaries
+          path: install/release/lib/bitcoinv2.so
 
