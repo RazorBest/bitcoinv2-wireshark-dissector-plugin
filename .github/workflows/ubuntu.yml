@@ -55,7 +55,15 @@ jobs:
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
+      - name: Cache compiled wireshark
+        id: wireshark-cache
+        uses: actions/cache@v4
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
       - name: Git clone wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: |
           mkdir wireshark
           cd wireshark
@@ -64,20 +72,22 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Copy custom wireshark build files
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
       - name: Build wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: |
           cd wireshark
           cmake --preset build-for-plugin
           cmake --build build
           cmake --install build --prefix ../install/
-          # Installs the Wireshark cmake package as well
+          # Installs the wireshark cmake package as well
           cmake --install build --prefix ./install --component Development
 
       - name: Build plugin depending on repo wireshark
-        run: Wireshark_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
+        run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
 
       - name: Copy plugin so
         run: |
