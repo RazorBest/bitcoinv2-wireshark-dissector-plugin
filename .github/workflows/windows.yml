@@ -41,6 +41,18 @@ jobs:
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
+      - name: Debug checkout wireshark
+        shell: pwsh
+        run: |
+          Get-Location
+
+          mkdir wireshark -Force -Verbose
+
+          Write-Host "Exit code: $LASTEXITCODE"
+          Write-Host "Directory exists: $(Test-Path ./wireshark)"
+
+          Get-ChildItem
+
       - name: Checkout Wireshark
         run: |
           mkdir wireshark -Force
