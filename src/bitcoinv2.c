@@ -1,13 +1,12 @@
 #define WS_LOG_DOMAIN "bitcoinv2"
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <wireshark.h>
 #include <wsutil/wslog.h>
 
-#include <algorithm>
-#include <cstring>
-#include <type_traits>
-
-extern "C" {
 #include <epan/column-utils.h>
 #include <epan/conversation.h>
 #include <epan/dissectors/packet-tcp.h>
@@ -17,50 +16,51 @@ extern "C" {
 #include <epan/tvbuff.h>
 #include <epan/wmem_scopes.h>
 #include <ws_version.h>
-}
 
+#if defined(__has_include)
 #if __has_include(<wsutil/plugins.h>)
 #include <wsutil/plugins.h>  // WS_PLUGIN_DESC_DISSECTOR (newer releases only)
 #endif
+#endif
 
-// NOTE: in C++ a namespace-scope `const` has internal linkage, which would hide
-// these symbols from Wireshark. The explicit `extern` keeps them exported.
-extern "C" {
-WS_DLL_PUBLIC_DEF extern const char plugin_version[] = "0.0.1";
-WS_DLL_PUBLIC_DEF extern const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
-WS_DLL_PUBLIC_DEF extern const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
+/*
+ * Use WS_DLL_PUBLIC and WS_DLL_PUBLIC_DEF for any symbol that we want to export
+ * (i.e. Wireshark will have access to them).
+ *
+ * WS_DLL_PUBLIC_DEF is for definitions.
+ * WS_DLL_PUBLIC is for declarations.
+ */
+
+WS_DLL_PUBLIC_DEF const char plugin_version[] = "0.0.1";
+WS_DLL_PUBLIC_DEF const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
+WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 
 WS_DLL_PUBLIC void plugin_register(void);
 #ifdef WS_PLUGIN_DESC_DISSECTOR
 WS_DLL_PUBLIC uint32_t plugin_describe(void);
 #endif
-}
 
 // Check https://www.wireshark.org/docs/relnotes/wireshark-4.4.0.html
-// ```
 // The tvb_get_guintX and tvb_get_gintX functions in the tvbuff API have been
 // renamed to tvb_get_uintX and tvb_get_intX (the GLib-style "g" has been removed).
-// You can still use the old-style names, but they have been deprecated.
-// ```
 #if WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR < 4
 #define tvb_get_uint8 tvb_get_guint8
 #endif
 
-// Bytes that identify the version message in v2
-// Three bytes little-endian length
-// One byte BIP-324 header
-// One byte compression indicator
+// Bytes that identify the version message in v2:
+// Three bytes little-endian length, one byte BIP-324 header, one byte compression indicator
 static const uint8_t version_ident[] = {0x73, 0x00, 0x00, 0x00, 0x00, 'v',  'e',  'r', 's',
                                         'i',  'o',  'n',  0x00, 0x00, 0x00, 0x00, 0x00};
-static const size_t VERSION_IDENT_LEN = sizeof(version_ident);
-static const int VERSION_IDENT_SEARCH_LIMIT = 5000;
 
-static const size_t ELLIGATOR_KEY_LEN = 64;
-static const size_t TAG_LEN = 16;  // Set to 0 if your unencrypted capture omits the AEAD tag
-static const size_t TERMINATOR_LEN = 16;
-static const size_t MIN_HANDSHAKE_LEN = ELLIGATOR_KEY_LEN + TERMINATOR_LEN;
-static const size_t LENGTH_LEN = 3;
-static const size_t HEADER_LEN = 1;
+#define VERSION_IDENT_LEN          (sizeof(version_ident))
+#define VERSION_IDENT_SEARCH_LIMIT 5000
+
+#define ELLIGATOR_KEY_LEN 64
+#define TAG_LEN           16  // Set to 0 if your unencrypted capture omits the AEAD tag
+#define TERMINATOR_LEN    16
+#define MIN_HANDSHAKE_LEN (ELLIGATOR_KEY_LEN + TERMINATOR_LEN)
+#define LENGTH_LEN        3
+#define HEADER_LEN        1
 
 // IDs that will be filled in by proto_register_bitcoinv2
 static int proto_bitcoinv2 = -1;
@@ -80,8 +80,8 @@ static dissector_handle_t bitcoinv2_handle;
 // Will be set by proto_reg_handoff_bitcoinv2
 static dissector_handle_t bitcoinv1_handle;
 
-// Per-direction handshake buffer (POD only: wmem frees without C++ destructors)
-struct dir_state_t {
+// Per-direction handshake buffer
+typedef struct {
     bool has_base_seq;
     bool gave_up;
     uint32_t base_seq;
@@ -96,30 +96,32 @@ struct dir_state_t {
     uint32_t version_written;
     uint32_t version_done_frame;
     uint32_t version_tail_in_done_frame;
-};
+} dir_state_t;
 
-struct bitcoinv2_conv_t {
+typedef struct {
     address init_addr;
     uint32_t init_port;
     dir_state_t dir[2];
-};
+} bitcoinv2_conv_t;
 
 // Standard BIP-324 1-byte short message type IDs (index 0 unused)
 static const char *bip324_short_id_to_cmd(uint8_t id) {
-    static const char *const table[] = {nullptr,       "addr",         "block",       "blocktxn",   "cmpctblock",
+    static const char *const table[] = {NULL,          "addr",         "block",       "blocktxn",   "cmpctblock",
                                         "feefilter",   "filteradd",    "filterclear", "filterload", "getblocks",
                                         "getblocktxn", "getdata",      "getheaders",  "headers",    "inv",
                                         "mempool",     "merkleblock",  "notfound",    "ping",       "pong",
                                         "sendcmpct",   "tx",           "getcfilters", "cfilter",    "getcfheaders",
                                         "cfheaders",   "getcfcheckpt", "cfcheckpt",   "addrv2"};
     if (id < array_length(table)) return table[id];
-    return nullptr;
+    return NULL;
 }
 
-static uint32_t read_le24(const uint8_t *p) { return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16); }
+static uint32_t read_le24(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16);
+}
 
 static bitcoinv2_conv_t *new_bitcoinv2_conv_t(address *src, uint32_t srcport) {
-    auto *st = wmem_new0(wmem_file_scope(), bitcoinv2_conv_t);
+    bitcoinv2_conv_t *st = wmem_new0(wmem_file_scope(), bitcoinv2_conv_t);
     st->dir[0].version_off = -1;
     st->dir[1].version_off = -1;
 
@@ -132,7 +134,7 @@ static bitcoinv2_conv_t *new_bitcoinv2_conv_t(address *src, uint32_t srcport) {
 static bitcoinv2_conv_t *get_conv_state(packet_info *pinfo) {
     conversation_t *conv = find_or_create_conversation(pinfo);
 
-    auto *st = static_cast<bitcoinv2_conv_t *>(conversation_get_proto_data(conv, proto_bitcoinv2));
+    bitcoinv2_conv_t *st = (bitcoinv2_conv_t *)conversation_get_proto_data(conv, proto_bitcoinv2);
     if (!st) {
         st = new_bitcoinv2_conv_t(&pinfo->src, pinfo->srcport);
         conversation_add_proto_data(conv, proto_bitcoinv2, st);
@@ -147,7 +149,7 @@ static dir_state_t *get_dir_state(bitcoinv2_conv_t *st, packet_info *pinfo) {
 
 static int find_version_ident_buf(const uint8_t *buf, size_t len) {
     if (len < VERSION_IDENT_LEN) return -1;
-    const uint8_t *hit = static_cast<const uint8_t *>(ws_memmem(buf, len, version_ident, VERSION_IDENT_LEN));
+    const uint8_t *hit = (const uint8_t *)ws_memmem(buf, len, version_ident, VERSION_IDENT_LEN);
     return hit ? (int)(hit - buf) : -1;
 }
 
@@ -182,7 +184,9 @@ static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinf
     // Start at MIN_HANDSHAKE_LEN, scanning only newly added bytes + boundary overlap
     if (state->max_written >= MIN_HANDSHAKE_LEN + VERSION_IDENT_LEN) {
         size_t scan_start = MIN_HANDSHAKE_LEN;
-        if (prev_max > MIN_HANDSHAKE_LEN + (VERSION_IDENT_LEN - 1)) scan_start = prev_max - (VERSION_IDENT_LEN - 1);
+        if (prev_max > MIN_HANDSHAKE_LEN + (VERSION_IDENT_LEN - 1)) {
+            scan_start = prev_max - (VERSION_IDENT_LEN - 1);
+        }
 
         int off = find_version_ident_buf(state->buf + scan_start, state->max_written - scan_start);
         if (off >= 0) {
@@ -196,7 +200,9 @@ static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinf
 }
 
 // Callback 1 for tcp_dissect_pdus: compute total wire length of one Bitcoin v2 message
-static unsigned get_bitcoinv2_pdu_len(packet_info * /*pinfo*/, tvbuff_t *tvb, int offset, void * /*data*/) {
+static unsigned get_bitcoinv2_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data) {
+    (void)pinfo;
+    (void)data;
     uint32_t payload_len = tvb_get_letoh24(tvb, offset);
     return (unsigned)(LENGTH_LEN + HEADER_LEN + payload_len + TAG_LEN);
 }
@@ -209,51 +215,53 @@ static void rebase_v1_tree(proto_node *node, tvbuff_t *v1_tvb, tvbuff_t *real_ds
 
     field_info *fi = PNODE_FINFO(node);
     if (fi && fi->ds_tvb == v1_tvb) {
-        using pos_t = decltype(fi->start);
-        int start = (int)fi->start;
-        int len = (int)fi->length;
+        int start = fi->start;
+        int len = fi->length;
         int end = start + len;
 
         fi->ds_tvb = real_ds;
 
         if (start >= 24) {
-            fi->start = (pos_t)(real_body_start + (start - 24));
+            fi->start = real_body_start + (start - 24);
         } else if (end > 24) {
-            fi->start = (pos_t)real_body_start;
-            fi->length = (pos_t)(end - 24);
+            fi->start = real_body_start;
+            fi->length = end - 24;
         } else {
-            fi->start = (pos_t)real_fallback_start;
+            fi->start = real_fallback_start;
             fi->length = 0;
             // Fix #1: never hide container nodes (e.g., 0-body messages like verack)
             if (len > 0 && !node->first_child) proto_item_set_hidden(node);
         }
 
         if (fi->appendix_length > 0) {
-            int app_start = (int)fi->appendix_start;
+            int app_start = fi->appendix_start;
             if (app_start >= 24) {
-                fi->appendix_start = (pos_t)(real_body_start + (app_start - 24));
+                fi->appendix_start = real_body_start + (app_start - 24);
             } else {
-                fi->appendix_start = (pos_t)real_fallback_start;
+                fi->appendix_start = real_fallback_start;
                 fi->appendix_length = 0;
             }
         }
     }
 
-    for (proto_node *child = node->first_child; child; child = child->next)
+    for (proto_node *child = node->first_child; child; child = child->next) {
         rebase_v1_tree(child, v1_tvb, real_ds, real_body_start, real_fallback_start);
+    }
 }
 
-static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * /*data*/) {
+static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+    (void)data;
+
     proto_item *t_root = proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
     proto_tree *t_msg = proto_item_add_subtree(t_root, ett_bitcoinv2_bitcoin_message);
 
     unsigned int payload_len = 0;
     proto_tree_add_item_ret_uint(t_msg, hf_length, tvb, 0, LENGTH_LEN, ENC_LITTLE_ENDIAN, &payload_len);
 
-    uint8_t header = tvb_get_uint8(tvb, (int)LENGTH_LEN);
-    proto_tree_add_item(t_msg, hf_header, tvb, (int)LENGTH_LEN, HEADER_LEN, ENC_NA);
+    uint8_t header = tvb_get_uint8(tvb, LENGTH_LEN);
+    proto_tree_add_item(t_msg, hf_header, tvb, LENGTH_LEN, HEADER_LEN, ENC_NA);
 
-    int payload_off = (int)(LENGTH_LEN + HEADER_LEN);
+    int payload_off = LENGTH_LEN + HEADER_LEN;
 
     // BIP-324 header bit 7 is the ignore/decoy flag — do not parse as a Bitcoin message
     if (header & 0x80) {
@@ -275,7 +283,8 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             const char *name = bip324_short_id_to_cmd(msg_type);
             type_len = 1;
             if (name) {
-                std::memcpy(cmd, name, std::min(std::strlen(name), sizeof(cmd)));
+                size_t name_len = strlen(name);
+                memcpy(cmd, name, MIN(name_len, sizeof(cmd)));
                 valid_cmd = true;
             }
         }
@@ -286,7 +295,7 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             int rem = (int)tvb_captured_length_remaining(tvb, body_off);
             uint32_t avail_body = rem > 0 ? ((uint32_t)rem < body_len ? (uint32_t)rem : body_len) : 0;
 
-            auto *v1_buf = static_cast<uint8_t *>(wmem_alloc0(pinfo->pool, 24 + avail_body));
+            uint8_t *v1_buf = (uint8_t *)wmem_alloc0(pinfo->pool, 24 + avail_body);
 
             // 4B mainnet magic (0xf9beb4d9)
             v1_buf[0] = 0xf9;
@@ -294,7 +303,7 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             v1_buf[2] = 0xb4;
             v1_buf[3] = 0xd9;
             // 12B zero-padded ASCII command
-            std::memcpy(v1_buf + 4, cmd, 12);
+            memcpy(v1_buf + 4, cmd, 12);
             // 4B little-endian payload length (full reported body length)
             v1_buf[16] = (uint8_t)(body_len & 0xff);
             v1_buf[17] = (uint8_t)((body_len >> 8) & 0xff);
@@ -310,7 +319,7 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             int real_fallback_start = (int)tvb_raw_offset(tvb) + payload_off;
             int real_body_start = real_fallback_start + (int)type_len;
 
-            proto_node *prev_last = t_msg ? t_msg->last_child : nullptr;
+            proto_node *prev_last = t_msg ? t_msg->last_child : NULL;
 
             col_set_writable(pinfo->cinfo, COL_PROTOCOL, false);
             TRY { call_dissector(bitcoinv1_handle, v1_tvb, pinfo, t_msg); }
@@ -336,17 +345,17 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     // Lock in this PDU's Info text before tcp_dissect_pdus() loops to the next message
     col_set_fence(pinfo->cinfo, COL_INFO);
 
-    if (TAG_LEN > 0) {
-        proto_tree_add_item(t_msg, hf_tag, tvb, payload_off + (int)payload_len, (int)TAG_LEN, ENC_NA);
-    }
+#if TAG_LEN > 0
+    proto_tree_add_item(t_msg, hf_tag, tvb, payload_off + (int)payload_len, TAG_LEN, ENC_NA);
+#endif
 
     return (int)tvb_captured_length(tvb);
 }
 
 // Dissect only the handshake portion [0 .. vident_offset - 1]
 static void dissect_handshake(tvbuff_t *tvb, proto_tree *tree, int vident_offset) {
-    int terminator_offset = vident_offset - (int)TERMINATOR_LEN;
-    int garbage_offset = (int)ELLIGATOR_KEY_LEN;
+    int terminator_offset = vident_offset - TERMINATOR_LEN;
+    int garbage_offset = ELLIGATOR_KEY_LEN;
     int garbage_len = terminator_offset - garbage_offset;
 
     proto_item *t_root = proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
@@ -369,7 +378,7 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     uint32_t len = tvb_captured_length(tvb);
     if (!data || len == 0) return 0;
 
-    const auto *tcpinfo = static_cast<const struct tcpinfo *>(data);
+    const struct tcpinfo *tcpinfo = (const struct tcpinfo *)data;
     bitcoinv2_conv_t *st = get_conv_state(pinfo);
     dir_state_t *d = get_dir_state(st, pinfo);
 
@@ -384,7 +393,7 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     if (d->version_off >= 0 && pinfo->num == d->match_frame) {
         uint32_t seg_start = tcpinfo->seq - d->base_seq;
 
-        tvbuff_t *hs_tvb = nullptr;
+        tvbuff_t *hs_tvb = NULL;
         if (seg_start == 0) {
             hs_tvb = tvb_new_subset_length(tvb, 0, d->version_off);
         } else {
@@ -409,8 +418,8 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
             if (prefix_len + len >= ver_pdu_len) {
                 uint32_t from_tvb = ver_pdu_len - prefix_len;
-                auto *ver_raw = static_cast<uint8_t *>(wmem_alloc(pinfo->pool, ver_pdu_len));
-                std::memcpy(ver_raw, d->buf + d->version_off, prefix_len);
+                uint8_t *ver_raw = (uint8_t *)wmem_alloc(pinfo->pool, ver_pdu_len);
+                memcpy(ver_raw, d->buf + d->version_off, prefix_len);
                 if (from_tvb > 0) tvb_memcpy(tvb, ver_raw + prefix_len, 0, from_tvb);
 
                 tvbuff_t *ver_tvb = tvb_new_child_real_data(tvb, ver_raw, ver_pdu_len, (int)ver_pdu_len);
@@ -426,8 +435,8 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
             } else {
                 if (!PINFO_FD_VISITED(pinfo) && !d->version_buf) {
                     d->version_pdu_len = ver_pdu_len;
-                    d->version_buf = static_cast<uint8_t *>(wmem_alloc(wmem_file_scope(), ver_pdu_len));
-                    std::memcpy(d->version_buf, d->buf + d->version_off, prefix_len);
+                    d->version_buf = (uint8_t *)wmem_alloc(wmem_file_scope(), ver_pdu_len);
+                    memcpy(d->version_buf, d->buf + d->version_off, prefix_len);
                     tvb_memcpy(tvb, d->version_buf + prefix_len, 0, len);
                     d->version_written = prefix_len + len;
                 }
@@ -438,7 +447,7 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     } else if (d->version_off >= 0 && pinfo->num < d->match_frame && d->has_base_seq) {
         uint32_t seg_start = tcpinfo->seq - d->base_seq;
         uint32_t seg_end = seg_start + len;
-        uint32_t term_off = (uint32_t)(d->version_off - (int)TERMINATOR_LEN);
+        uint32_t term_off = (uint32_t)(d->version_off - TERMINATOR_LEN);
 
         col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "Handshake fragment (stream bytes %u..%u)", seg_start,
                             seg_end - 1);
@@ -447,8 +456,8 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
         proto_item *t_root = proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
         proto_tree *t_bitcoinv2 = proto_item_add_subtree(t_root, ett_bitcoinv2);
 
-        add_handshake_slice(t_bitcoinv2, hf_ellswift_key, tvb, seg_start, seg_end, 0, (uint32_t)ELLIGATOR_KEY_LEN);
-        add_handshake_slice(t_bitcoinv2, hf_garbage, tvb, seg_start, seg_end, (uint32_t)ELLIGATOR_KEY_LEN, term_off);
+        add_handshake_slice(t_bitcoinv2, hf_ellswift_key, tvb, seg_start, seg_end, 0, ELLIGATOR_KEY_LEN);
+        add_handshake_slice(t_bitcoinv2, hf_garbage, tvb, seg_start, seg_end, ELLIGATOR_KEY_LEN, term_off);
         add_handshake_slice(t_bitcoinv2, hf_terminator, tvb, seg_start, seg_end, term_off, (uint32_t)d->version_off);
     } else if (d->version_off >= 0 && pinfo->num > d->match_frame) {
         if (d->version_buf) {
@@ -502,14 +511,19 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     return (int)len;
 }
 
-// Heuristic wrapper. The return type of heur_dissector_t differs between
-// Wireshark releases (gboolean in 4.2, bool later), so take it from the typedef.
-using heur_result_t = std::invoke_result_t<heur_dissector_t, tvbuff_t *, packet_info *, proto_tree *, void *>;
+/* Heuristic wrapper. The return type of heur_dissector_t differs between
+ * Wireshark releases (gboolean in 4.2, bool in 4.4+), so select it by version. */
+#if (WIRESHARK_VERSION_MAJOR > 4) || \
+    (WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR >= 3)
+typedef bool heur_result_t;
+#else
+typedef gboolean heur_result_t;
+#endif
 
 static heur_result_t dissect_bitcoinv2_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     if (!data || tvb_captured_length(tvb) == 0) return false;
 
-    const auto *tcpinfo = static_cast<const struct tcpinfo *>(data);
+    const struct tcpinfo *tcpinfo = (const struct tcpinfo *)data;
     bitcoinv2_conv_t *st = get_conv_state(pinfo);
     dir_state_t *d = get_dir_state(st, pinfo);
 
@@ -551,9 +565,7 @@ static void proto_reg_handoff_bitcoinv2(void) {
                        HEURISTIC_ENABLE);
 }
 
-extern "C" {
-
-void plugin_register(void) {
+WS_DLL_PUBLIC void plugin_register(void) {
     static proto_plugin plug;
     plug.register_protoinfo = proto_register_bitcoinv2;
     plug.register_handoff = proto_reg_handoff_bitcoinv2;
@@ -561,7 +573,5 @@ void plugin_register(void) {
 }
 
 #ifdef WS_PLUGIN_DESC_DISSECTOR
-uint32_t plugin_describe(void) { return WS_PLUGIN_DESC_DISSECTOR; }
+WS_DLL_PUBLIC uint32_t plugin_describe(void) { return WS_PLUGIN_DESC_DISSECTOR; }
 #endif
-
-}  // extern "C"

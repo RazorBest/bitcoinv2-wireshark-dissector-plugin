@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
-project(bitcoinv2 VERSION 0.0.1 LANGUAGES C CXX)
+project(bitcoinv2 VERSION 0.0.1 LANGUAGES C)
 include(GNUInstallDirs)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+# Equivalent to -std=c11 instead of -gnu=c11
+set(CMAKE_C_EXTENSIONS OFF)
+# Includes compile_commands.json in the build directory, which could be used by language servers
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-# Better portability
-set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(INSTALL_ON_SYSTEM "If enabled, install the plugin in the default wireshark plugins directory" OFF)
 
@@ -14,18 +15,18 @@ find_package(Wireshark CONFIG REQUIRED)
 message(STATUS "Wireshark config dir:  ${Wireshark_DIR}")
 message(STATUS "Wireshark config file: ${Wireshark_CONFIG}")
 
-set(SOURCES src/bitcoinv2.cpp)
+set(SOURCES src/bitcoinv2.c)
 
 # Do not switch to shared. Wireshark needs modules
 add_library(${PROJECT_NAME} MODULE ${SOURCES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
+    VERSION ${PROJECT_VERSION}}
     PREFIX ""
     DEFINE_SYMBOL ""
+    C_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
 )
-
-# set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(bitcoinv2 PROPERTIES VERSION ${PROJECT_VERSION}})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE epan)
 
