@@ -1,4 +1,4 @@
-function(search_wireshark_package_recursively SEARCH_PATH)
+macro(search_wireshark_package_recursively SEARCH_PATH)
     file(GLOB_RECURSE WIRESHARK_CONFIG_FILES
         "${SEARCH_PATH}/WiresharkConfig.cmake"
     )
@@ -21,13 +21,15 @@ function(search_wireshark_package_recursively SEARCH_PATH)
 
     list(GET WIRESHARK_CONFIG_FILES 0 WIRESHARK_CONFIG_FILE)
 
-    get_filename_component(Wireshark_DIR
+    get_filename_component(WIRESHARK_CMAKE_PACKAGE_DIR
         "${WIRESHARK_CONFIG_FILE}"
         DIRECTORY
     )
 
-    set(Wireshark_DIR "${Wireshark_DIR}" PARENT_SCOPE)
-
-    message(STATUS "Found Wireshark package: ${Wireshark_DIR}")
-endfunction()
+    find_package(Wireshark CONFIG REQUIRED
+        PATHS
+            "${WIRESHARK_CMAKE_PACKAGE_DIR}"
+        NO_DEFAULT_PATH
+    )
+endmacro()
 
