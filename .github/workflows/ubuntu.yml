@@ -19,12 +19,12 @@ env:
    WIRESHARK_BRANCH: release-4.4
 
 jobs:
-  standalone:
-    name: Build standalone plugin
+  sytem-build:
+    name: Build plugin based on system-installed wireshark
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout plug-in
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Install dependencies for a standalone build
         run: |
@@ -42,3 +42,65 @@ jobs:
         with:
           name: binaries
           path: install/release/lib/bitcoinv2.so
+
+  repo-build:
+    name: Build plugin based on repo-fetched wireshark
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Wireshark
+        run: |
+          git init
+          git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
+          git checkout ${{ env.WIRESHARK_BRANCH }}
+      - name: Checkout plug-in
+        uses: actions/checkout@v7
+        with:
+          path: plugins/epan/sap
+      - name: Apply patch
+        run: |
+          git apply plugins/epan/sap/wireshark-${{ env.WIRESHARK_BRANCH }}.patch
+      - name: Install dependencies for a in-tree build
+        run: |
+          sudo gem install asciidoctor
+          sudo apt-get update -qq
+          sudo apt-get install -yqq cmake libglib2.0-dev qttools5-dev qttools5-dev-tools libqt5svg5-dev qtmultimedia5-dev qt5-default libc-ares-dev libpcap-dev bison flex make python3 python3-pip perl libgcrypt-dev
+
+      - name: Build in-tree
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make sap tshark
+
+      - name: Install dependencies for testing
+        run: |
+          sudo apt-get install -yqq libxml2-dev libxslt-dev python2.7-dev python-pip
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 2.7
+      - name: Install Python packages for testing
+        run: |
+          python2 -m pip install --upgrade pip setuptools wheel
+          python2 -m pip install pysap
+      - name: Install patched pyshark-legacy version
+        run: |
+          git clone https://github.com/martingalloar/pyshark-legacy
+          python2 -m pip install pyshark-legacy/src
+      - name: Run tests
+        run: |
+          cd plugins/epan/sap/
+          python2 tests/__init__.py
+        env:
+          TSHARK_PATH: ${{ github.workspace }}/build/run/tshark
+
+      - name: Copy plugin so
+        run: |
+          mkdir exe
+          cp build/run/plugins/3.6/epan/sap.so exe/sap-source.so
+      - name: Upload Ubuntu artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: packages
+          path: exe
+
