@@ -82,7 +82,7 @@ jobs:
           cd wireshark
           cmake --preset build-for-plugin
           cmake --build build
-          cmake --install build --prefix ../install/
+          cmake --install build --prefix ./install/
           # Installs the wireshark cmake package as well
           cmake --install build --prefix ./install --component Development
 
