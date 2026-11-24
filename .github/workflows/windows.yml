@@ -37,31 +37,19 @@ jobs:
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
-      - name: Copy custom wireshark build files
-        run: |
-          cp wireshark_build_config/CMakeUserPresets.json wireshark
-
-      - name: Debug checkout wireshark
-        shell: pwsh
-        run: |
-          Get-Location
-
-          mkdir wireshark -Force -Verbose
-
-          Write-Host "Exit code: $LASTEXITCODE"
-          Write-Host "Directory exists: $(Test-Path ./wireshark)"
-
-          Get-ChildItem
-
       - name: Checkout Wireshark
         run: |
-          mkdir wireshark -Force
+          New-Item -ItemType Directory -Force -Path "$PWD\wireshark"
           cd wireshark
           Get-Location
           Get-ChildItem
           git init
           git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
           git checkout ${{ env.WIRESHARK_BRANCH }}
+
+      - name: Copy custom wireshark build files
+        run: |
+          cp wireshark_build_config/CMakeUserPresets.json wireshark
 
       - name: Set MSVC command prompt
         uses: ilammy/msvc-dev-cmd@v1
