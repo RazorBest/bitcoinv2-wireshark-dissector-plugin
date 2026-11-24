@@ -14,7 +14,8 @@
             "displayName": "Bitcoin v2 (debug)",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}"
+                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
             }
         },
         {
@@ -23,7 +24,8 @@
             "displayName": "Bitcoin v2",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}"
+                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
             }
         },
         {
@@ -33,6 +35,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}",
                 "INSTALL_ON_SYSTEM": true
             }
         }

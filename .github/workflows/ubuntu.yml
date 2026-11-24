@@ -103,7 +103,7 @@ jobs:
           tree ./install
 
       - name: Build plugin depending on repo wireshark
-        run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
+        run: WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH=./wireshark/install cmake --workflow release
 
       - name: Upload compiled file
         uses: actions/upload-artifact@v7

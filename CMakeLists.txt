@@ -11,7 +11,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(INSTALL_ON_SYSTEM "If enabled, install the plugin in the default wireshark plugins directory" OFF)
 
-find_package(Wireshark CONFIG REQUIRED)
+if(NOT WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH STREQUAL "")
+    include("${CMAKE_SOURCE_DIR}/cmake/SearchWiresharkPackageRecursively.cmake")
+    search_wireshark_package_recursively("${WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}")
+else()
+    find_package(Wireshark CONFIG REQUIRED)
+endif()
+
 message(STATUS "Wireshark config dir:  ${Wireshark_DIR}")
 message(STATUS "Wireshark config file: ${Wireshark_CONFIG}")
 
