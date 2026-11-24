@@ -4,7 +4,20 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <wireshark.h>
+// Contains WS_VERSION and WS_VERSION_NUM
+#include <ws_version.h>
+
+/* Top-level header: wireshark.h arrived in 3.7/4.0 */
+#if WS_VERSION >= WS_VERSION_NUM(4, 0, 0)
+  #include <wireshark.h>
+#else
+  #include "config.h"
+  #include <stdbool.h>
+  #include <stdint.h>
+  #include <ws_symbol_export.h>
+  #include <ws_attributes.h>
+#endif
+
 #include <wsutil/wslog.h>
 
 #include <epan/column-utils.h>
@@ -15,7 +28,6 @@
 #include <epan/proto.h>
 #include <epan/tvbuff.h>
 #include <epan/wmem_scopes.h>
-#include <ws_version.h>
 
 #if defined(__has_include)
 #if __has_include(<wsutil/plugins.h>)
