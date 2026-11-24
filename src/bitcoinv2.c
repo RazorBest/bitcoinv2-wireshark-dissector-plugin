@@ -16,9 +16,12 @@
 #if WS_VERSION >= WS_VERSION_NUM(4, 0, 0)
   #include <wireshark.h>
 #else
-  #include "config.h"
+  #ifdef HAVE_CONFIG_H
+    #include "config.h"
+  #endif
   #include <stdbool.h>
   #include <stdint.h>
+  #include <glib.h>
   #include <ws_symbol_export.h>
   #include <ws_attributes.h>
 #endif
@@ -38,6 +41,14 @@
 #if __has_include(<wsutil/plugins.h>)
 #include <wsutil/plugins.h>  // WS_PLUGIN_DESC_DISSECTOR (newer releases only)
 #endif
+#endif
+
+#ifndef _U_
+  #if defined(__GNUC__) || defined(__clang__)
+    #define _U_ __attribute__((unused))
+  #else
+    #define _U_
+  #endif
 #endif
 
 /*
