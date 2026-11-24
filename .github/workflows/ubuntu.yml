@@ -100,6 +100,7 @@ jobs:
           cmake --install build --prefix ./install/
           # Installs the wireshark cmake package as well
           cmake --install build --prefix ./install --component Development
+          tree ./install
 
       - name: Build plugin depending on repo wireshark
         run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release

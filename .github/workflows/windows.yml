@@ -24,10 +24,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Install dependencies for the wireshark build
-        run: cinst -y --force --no-progress cmake
+        run: choco install -y --force --no-progress cmake
 
       - name: Install winflexbison3
-        run: cinst -y --force --no-progress winflexbison3 --version 2.5.18.20190508
+        run: choco install -y --force --no-progress winflexbison3 --version 2.5.18.20190508
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
