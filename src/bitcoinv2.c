@@ -26,8 +26,6 @@
   #include <ws_attributes.h>
 #endif
 
-#include <wsutil/wslog.h>
-
 #include <epan/column-utils.h>
 #include <epan/conversation.h>
 #include <epan/dissectors/packet-tcp.h>
