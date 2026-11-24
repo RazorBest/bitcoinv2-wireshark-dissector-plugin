@@ -44,8 +44,6 @@ jobs:
         run: |
           mkdir wireshark
           cd wireshark
-          Get-Location
-          Get-ChildItem
           git init
           git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
           git checkout ${{ env.WIRESHARK_BRANCH }}
