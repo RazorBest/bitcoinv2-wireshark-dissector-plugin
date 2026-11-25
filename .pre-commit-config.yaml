@@ -6,6 +6,7 @@ repos:
     -   id: end-of-file-fixer
     -   id: check-yaml
     -   id: check-added-large-files
+    # Format CMake files
 -   repo: https://github.com/BlankSpruce/gersemi-pre-commit
     rev: 0.29.2
     hooks:
@@ -14,3 +15,8 @@ repos:
     rev: v23.1.5
     hooks:
     -   id: clang-format
+    # Lint github actions files
+-   repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+    -   id: actionlint

@@ -76,7 +76,7 @@ jobs:
       - name: Build plugin depending on repo wireshark
         shell: pwsh
         env:
-          WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH=./wireshark/install-dir
+          WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH: ./wireshark/install-dir
         run: cmake --workflow release
 
       - name: tree install
