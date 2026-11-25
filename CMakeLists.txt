@@ -65,6 +65,12 @@ endif()
 include_directories(${Wireshark_INCLUDE_DIR})
 link_directories(${Wireshark_LIB_DIR})
 
+# Passed as a macro variable accessible by source files
+target_compile_definitions(
+    ${PROJECT_NAME}
+    PRIVATE PROJECT_VERSION="${PROJECT_VERSION}"
+)
+
 install(
     TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${LIBRARY_INSTALL_DESTINATION}

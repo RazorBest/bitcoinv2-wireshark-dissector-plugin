@@ -50,7 +50,8 @@
  * WS_DLL_PUBLIC is for declarations.
  */
 
-WS_DLL_PUBLIC_DEF const char plugin_version[] = "0.0.1";
+// PROJECT_VERSION is provided by cmake
+WS_DLL_PUBLIC_DEF const char plugin_version[] = PROJECT_VERSION;
 WS_DLL_PUBLIC_DEF const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
 WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 
