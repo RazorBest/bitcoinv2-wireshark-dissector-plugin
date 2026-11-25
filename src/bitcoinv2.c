@@ -8,8 +8,12 @@
 // Contains WS_VERSION and WS_VERSION_NUM
 #include <ws_version.h>
 
+#ifndef WS_VERSION_NUM
 #define WS_VERSION_NUM(maj, min, mic) (((maj) * 10000) + ((min) * 100) + (mic))
+#endif
+#ifndef WS_VERSION
 #define WS_VERSION WS_VERSION_NUM(WIRESHARK_VERSION_MAJOR, WIRESHARK_VERSION_MINOR, WIRESHARK_VERSION_MICRO)
+#endif
 
 // Top-level header: wireshark.h arrived in 3.7/4.0
 #if WS_VERSION >= WS_VERSION_NUM(4, 0, 0)
@@ -19,8 +23,6 @@
 #include "config.h"
 #endif
 #include <glib.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <ws_attributes.h>
 #include <ws_symbol_export.h>
 #endif
@@ -42,12 +44,20 @@
 #endif
 #endif
 
+// Wireshark 4.4 removed the GLib "g" prefix from tvb_get_guintX / tvb_get_gintX
+#if WS_VERSION < WS_VERSION_NUM(4, 4, 0)
+#define tvb_get_uint8 tvb_get_guint8
+#endif
+
+// heur_dissector_t switched from gboolean to bool in Wireshark 4.3/4.4
+#if WS_VERSION >= WS_VERSION_NUM(4, 3, 0)
+typedef bool heur_result_t;
+#else
+typedef gboolean heur_result_t;
+#endif
+
 /*
- * Use WS_DLL_PUBLIC and WS_DLL_PUBLIC_DEF for any symbol that we want to export
- * (i.e. Wireshark will have access to them).
- *
- * WS_DLL_PUBLIC_DEF is for definitions.
- * WS_DLL_PUBLIC is for declarations.
+ * Use WS_DLL_PUBLIC_DEF for exported definitions and WS_DLL_PUBLIC for declarations.
  */
 
 // PROJECT_VERSION is provided by cmake
@@ -58,13 +68,6 @@ WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 WS_DLL_PUBLIC void plugin_register(void);
 #ifdef WS_PLUGIN_DESC_DISSECTOR
 WS_DLL_PUBLIC uint32_t plugin_describe(void);
-#endif
-
-// Check https://www.wireshark.org/docs/relnotes/wireshark-4.4.0.html
-// The tvb_get_guintX and tvb_get_gintX functions in the tvbuff API have been
-// renamed to tvb_get_uintX and tvb_get_intX (the GLib-style "g" has been removed).
-#if WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR < 4
-#define tvb_get_uint8 tvb_get_guint8
 #endif
 
 // Bytes that identify the version message in v2:
@@ -83,7 +86,7 @@ static const uint8_t version_ident[] = {0x73, 0x00, 0x00, 0x00, 0x00, 'v',  'e',
 #define HEADER_LEN 1
 #define P2P_COMMAND_LENGTH 12
 
-// IDs that will be filled in by proto_register_bitcoinv2
+// IDs filled in by proto_register_bitcoinv2
 static int proto_bitcoinv2 = -1;
 static int hf_ellswift_key = -1;
 static int hf_garbage = -1;
@@ -97,8 +100,6 @@ static int ett_bitcoinv2_bitcoin_message = -1;
 
 // Will be set by proto_register_bitcoinv2
 static dissector_handle_t bitcoinv2_handle;
-
-// Will be set by proto_reg_handoff_bitcoinv2
 static dissector_handle_t bitcoinv1_handle;
 
 // 4B mainnet magic (0xf9beb4d9)
@@ -122,7 +123,7 @@ typedef struct {
     uint32_t match_frame;  // frame number that completed version_ident
     uint8_t buf[VERSION_IDENT_SEARCH_LIMIT];
 
-    // Used only if version_ident straddles two segments AND version spills past match_frame
+    // Used only if version_ident straddles two segments
     uint8_t *version_buf;
     uint32_t version_pdu_len;
     uint32_t version_written;
@@ -144,15 +145,23 @@ static const char *bip324_short_id_to_cmd(uint8_t id) {
                                         "mempool",     "merkleblock",  "notfound",    "ping",       "pong",
                                         "sendcmpct",   "tx",           "getcfilters", "cfilter",    "getcfheaders",
                                         "cfheaders",   "getcfcheckpt", "cfcheckpt",   "addrv2"};
-    if (id < array_length(table)) {
-        return table[id];
-    }
-
-    return NULL;
+    return id < array_length(table) ? table[id] : NULL;
 }
 
 static uint32_t read_le24(const uint8_t *p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << SHIFT_BYTE1_LE) | ((uint32_t)p[2] << SHIFT_BYTE2_LE);
+}
+
+static void write_le32(uint8_t *p, uint32_t val) {
+    p[0] = (uint8_t)(val & MASK_U8_ALL);
+    p[1] = (uint8_t)((val >> SHIFT_BYTE1_LE) & MASK_U8_ALL);
+    p[2] = (uint8_t)((val >> SHIFT_BYTE2_LE) & MASK_U8_ALL);
+    p[3] = (uint8_t)((val >> SHIFT_BYTE3_LE) & MASK_U8_ALL);
+}
+
+static void append_info_fenced(packet_info *pinfo, const char *str) {
+    col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", str);
+    col_set_fence(pinfo->cinfo, COL_INFO);
 }
 
 static bitcoinv2_conv_t *new_bitcoinv2_conv_t(address *src, uint32_t srcport) {
@@ -180,18 +189,7 @@ static bitcoinv2_conv_t *get_conv_state(packet_info *pinfo) {
 
 static dir_state_t *get_dir_state(bitcoinv2_conv_t *st, packet_info *pinfo) {
     int idx = (addresses_equal(&st->init_addr, &pinfo->src) && st->init_port == pinfo->srcport) ? 0 : 1;
-
     return &st->dir[idx];
-}
-
-static int find_version_ident_buf(const uint8_t *buf, size_t len) {
-    if (len < VERSION_IDENT_LEN) {
-        return -1;
-    }
-
-    const uint8_t *hit = ws_memmem(buf, len, version_ident, VERSION_IDENT_LEN);
-
-    return hit ? (int)(hit - buf) : -1;
 }
 
 static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinfo, const struct tcpinfo *tcpinfo) {
@@ -222,7 +220,7 @@ static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinf
 
     uint32_t prev_max = state->max_written;
     uint32_t room = (uint32_t)VERSION_IDENT_SEARCH_LIMIT - rel;
-    uint32_t to_copy = len < room ? len : room;
+    uint32_t to_copy = MIN(len, room);
     if (rel + to_copy <= prev_max) {
         return;
     }
@@ -237,9 +235,10 @@ static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinf
             scan_start = prev_max - (VERSION_IDENT_LEN - 1);
         }
 
-        int off = find_version_ident_buf(state->buf + scan_start, state->max_written - scan_start);
-        if (off >= 0) {
-            state->version_off = (int)scan_start + off;
+        const uint8_t *hit =
+            ws_memmem(state->buf + scan_start, state->max_written - scan_start, version_ident, VERSION_IDENT_LEN);
+        if (hit) {
+            state->version_off = (int)(hit - state->buf);
             state->match_frame = pinfo->num;
             return;
         }
@@ -251,9 +250,7 @@ static void buffer_and_scan(dir_state_t *state, tvbuff_t *tvb, packet_info *pinf
 }
 
 // Callback 1 for tcp_dissect_pdus: compute total wire length of one Bitcoin v2 message
-static unsigned get_bitcoinv2_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data) {
-    (void)pinfo;
-    (void)data;
+static unsigned get_bitcoinv2_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_) {
     uint32_t payload_len = tvb_get_letoh24(tvb, offset);
     return (unsigned)(LENGTH_LEN + HEADER_LEN + payload_len + TAG_LEN);
 }
@@ -282,7 +279,7 @@ static void rebase_v1_tree(proto_node *node, tvbuff_t *v1_tvb, tvbuff_t *real_ds
         } else {
             fi->start = real_fallback_start;
             fi->length = 0;
-            // Fix #1: never hide container nodes (e.g., 0-body messages like verack)
+            // Never hide container nodes (e.g., 0-body messages like verack)
             if (len > 0 && !node->first_child) {
                 proto_item_set_hidden(node);
             }
@@ -304,38 +301,32 @@ static void rebase_v1_tree(proto_node *node, tvbuff_t *v1_tvb, tvbuff_t *real_ds
     }
 }
 
-static int handle_v2_message_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t_msg, char *cmd,
-                                     uint32_t payload_len, uint32_t type_len, int payload_off) {
+static void handle_v2_message_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t_msg, const uint8_t *cmd,
+                                      uint32_t payload_len, uint32_t type_len, int payload_off) {
     uint32_t body_len = payload_len - type_len;
     int body_off = payload_off + (int)type_len;
     int rem = tvb_captured_length_remaining(tvb, body_off);
-    uint32_t avail_body = 0;
-    if (rem > 0) {
-        avail_body = MIN(rem, body_len);
-    }
+    uint32_t avail_body = rem > 0 ? MIN((uint32_t)rem, body_len) : 0;
 
-    uint8_t *v1_buf = (uint8_t *)wmem_alloc0(pinfo->pool, P2P_COMMAND_LENGTH + avail_body);
+    // Synthesize a 24B Bitcoin v1 header: [4B magic][12B command][4B LE length][4B zero checksum]
+    uint8_t *v1_buf = (uint8_t *)wmem_alloc0(pinfo->pool, (size_t)VERSION_BITCOINV1_COMMAND_PREFIX_LEN + avail_body);
+    size_t off = 0;
 
-    memcpy(v1_buf, bitcoinv1_magic, sizeof(bitcoinv1_magic));
+    memcpy(v1_buf + off, bitcoinv1_magic, sizeof(bitcoinv1_magic));
+    off += sizeof(bitcoinv1_magic);
 
-    // 12B zero-padded ASCII command
-    memcpy(v1_buf + sizeof(bitcoinv1_magic), cmd, P2P_COMMAND_LENGTH);
+    memcpy(v1_buf + off, cmd, P2P_COMMAND_LENGTH);
+    off += P2P_COMMAND_LENGTH;
 
-    // 4B little-endian payload length (full reported body length)
-    size_t off = sizeof(bitcoinv1_magic) + P2P_COMMAND_LENGTH;
-    v1_buf[off] = (uint8_t)(body_len & MASK_U8_ALL);
-    v1_buf[off + 1] = (uint8_t)((body_len >> SHIFT_BYTE1_LE) & MASK_U8_ALL);
-    v1_buf[off + 2] = (uint8_t)((body_len >> SHIFT_BYTE2_LE) & MASK_U8_ALL);
-    v1_buf[off + 3] = (uint8_t)((body_len >> SHIFT_BYTE3_LE) & MASK_U8_ALL);
-    off += 4;
-    // v1_buf[20..23] stays 0x00000000 (placeholder checksum)
-    off += 4;
+    write_le32(v1_buf + off, body_len);
+    // Remaining 4 bytes stay 0x00000000 (placeholder checksum)
 
     if (avail_body > 0) {
-        tvb_memcpy(tvb, v1_buf + off, body_off, avail_body);
+        tvb_memcpy(tvb, v1_buf + VERSION_BITCOINV1_COMMAND_PREFIX_LEN, body_off, avail_body);
     }
 
-    tvbuff_t *v1_tvb = tvb_new_child_real_data(tvb, v1_buf, off + avail_body, (int)(off + body_len));
+    tvbuff_t *v1_tvb = tvb_new_child_real_data(tvb, v1_buf, (unsigned)VERSION_BITCOINV1_COMMAND_PREFIX_LEN + avail_body,
+                                               VERSION_BITCOINV1_COMMAND_PREFIX_LEN + (int)body_len);
 
     tvbuff_t *real_ds = tvb_get_ds_tvb(tvb);
     int real_fallback_start = tvb_raw_offset(tvb) + payload_off;
@@ -358,9 +349,29 @@ static int handle_v2_message_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     ENDTRY;
 }
 
-static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
-    (void)data;
+// Decode the BIP-324 message type prefix into cmd. Returns prefix length (1 or 13), or 0 if invalid.
+static uint32_t parse_v2_command(tvbuff_t *tvb, int payload_off, uint8_t cmd[P2P_COMMAND_LENGTH],
+                                 uint32_t payload_len) {
+    uint8_t msg_type = tvb_get_uint8(tvb, payload_off);
+    if (msg_type == 0x00) {
+        if (payload_len <= P2P_COMMAND_LENGTH) {
+            return 0;
+        }
+        tvb_memcpy(tvb, cmd, payload_off + 1, P2P_COMMAND_LENGTH);
+        return P2P_COMMAND_LENGTH + 1;
+    }
 
+    const char *name = bip324_short_id_to_cmd(msg_type);
+    if (!name) {
+        return 0;
+    }
+    for (size_t i = 0; i < P2P_COMMAND_LENGTH && name[i] != '\0'; i++) {
+        cmd[i] = (uint8_t)name[i];
+    }
+    return 1;
+}
+
+static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
     proto_item *t_root = proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
     proto_tree *t_msg = proto_item_add_subtree(t_root, ett_bitcoinv2_bitcoin_message);
 
@@ -378,36 +389,19 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             proto_tree_add_item(t_msg, hf_bitcoin_message, tvb, payload_off, (int)payload_len, ENC_NA);
         }
         col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Decoy");
-    } else if (payload_len >= 1) {
+    } else if (payload_len == 0) {
+        col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Empty");
+    } else {
         uint8_t msg_type = tvb_get_uint8(tvb, payload_off);
-        char cmd[P2P_COMMAND_LENGTH] = {0};
-        uint32_t type_len = 0;
-        bool valid_cmd = false;
+        uint8_t cmd[P2P_COMMAND_LENGTH] = {0};
+        uint32_t type_len = parse_v2_command(tvb, payload_off, cmd, payload_len);
 
-        if (msg_type == 0x00) {
-            if (payload_len > P2P_COMMAND_LENGTH) {
-                tvb_memcpy(tvb, cmd, payload_off + 1, P2P_COMMAND_LENGTH);
-                type_len = P2P_COMMAND_LENGTH + 1;
-                valid_cmd = true;
-            }
-        } else {
-            const char *name = bip324_short_id_to_cmd(msg_type);
-            type_len = 1;
-            if (name) {
-                size_t name_len = strlen(name);
-                memcpy(cmd, name, MIN(name_len, sizeof(cmd)));
-                valid_cmd = true;
-            }
-        }
-
-        if (valid_cmd && bitcoinv1_handle) {
+        if (type_len > 0 && bitcoinv1_handle) {
             handle_v2_message_payload(tvb, pinfo, t_msg, cmd, payload_len, type_len, payload_off);
         } else {
             proto_tree_add_item(t_msg, hf_bitcoin_message, tvb, payload_off, (int)payload_len, ENC_NA);
             col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "Unknown type 0x%02x", msg_type);
         }
-    } else {
-        col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Empty");
     }
 
     // Lock in this PDU's Info text before tcp_dissect_pdus() loops to the next message
@@ -418,6 +412,18 @@ static int dissect_bitcoinv2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 #endif
 
     return (int)tvb_captured_length(tvb);
+}
+
+static void dissect_pdus_from(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, uint32_t offset) {
+    if (offset >= tvb_captured_length(tvb)) {
+        return;
+    }
+
+    tvbuff_t *pdu_tvb = offset == 0 ? tvb : tvb_new_subset_remaining(tvb, (int)offset);
+    tcp_dissect_pdus(pdu_tvb, pinfo, tree, true, LENGTH_LEN, get_bitcoinv2_pdu_len, dissect_bitcoinv2_pdu, data);
+    if (pinfo->desegment_len != 0) {
+        pinfo->desegment_offset += (int)offset;
+    }
 }
 
 // Dissect only the handshake portion [0 .. vident_offset - 1]
@@ -436,29 +442,76 @@ static void dissect_handshake(tvbuff_t *tvb, proto_tree *tree, int vident_offset
     proto_tree_add_item(t_bitcoinv2, hf_terminator, tvb, terminator_offset, TERMINATOR_LEN, ENC_NA);
 }
 
-typedef struct {
-    uint32_t seg_start;
-    uint32_t seg_end;
-    uint32_t field_start;
-    uint32_t field_end;
-} handshake_slice_bounds_t;
+static void init_version_reassembly(dir_state_t *state, uint32_t seg_start) {
+    uint32_t prefix_len = seg_start - (uint32_t)state->version_off;
+    uint32_t ver_pdu_len = (uint32_t)(LENGTH_LEN + HEADER_LEN + read_le24(state->buf + state->version_off) + TAG_LEN);
 
-// Helper to add whichever portion of a handshake field overlaps the current TCP segment
-static void add_handshake_slice(proto_tree *tree, int hf, tvbuff_t *tvb, const handshake_slice_bounds_t *bounds) {
-    const uint32_t seg_start = bounds->seg_start;
-    const uint32_t seg_end = bounds->seg_end;
-    const uint32_t field_start = bounds->field_start;
-    const uint32_t field_end = bounds->field_end;
+    state->version_pdu_len = ver_pdu_len;
+    state->version_buf = (uint8_t *)wmem_alloc(wmem_file_scope(), ver_pdu_len);
 
-    uint32_t lo = seg_start > field_start ? seg_start : field_start;
-    uint32_t hi = seg_end < field_end ? seg_end : field_end;
-    if (lo < hi) {
-        proto_tree_add_item(tree, hf, tvb, (int)(lo - seg_start), (int)(hi - lo), ENC_NA);
+    uint32_t to_copy = MIN(prefix_len, ver_pdu_len);
+    memcpy(state->version_buf, state->buf + state->version_off, to_copy);
+    state->version_written = to_copy;
+}
+
+static void feed_version_buf(tvbuff_t *tvb, packet_info *pinfo, uint32_t len, const struct tcpinfo *tcpinfo,
+                             dir_state_t *state) {
+    if (PINFO_FD_VISITED(pinfo) || state->version_done_frame != 0) {
+        return;
+    }
+
+    int32_t srel = (int32_t)(tcpinfo->seq - state->base_seq);
+    if (srel < state->version_off) {
+        return;
+    }
+
+    uint32_t rel_ver = (uint32_t)(srel - state->version_off);
+    if (rel_ver >= state->version_pdu_len) {
+        return;
+    }
+
+    uint32_t take = MIN(len, state->version_pdu_len - rel_ver);
+    tvb_memcpy(tvb, state->version_buf + rel_ver, 0, take);
+    state->version_written = MAX(state->version_written, rel_ver + take);
+
+    if (state->version_written >= state->version_pdu_len) {
+        state->version_done_frame = pinfo->num;
+        state->version_tail_in_done_frame = take;
     }
 }
 
+// Handles frames belonging to a straddling version PDU.
+// Returns true if this frame was consumed, false if normal PDU dissection should run.
+static bool dissect_reassembled_version(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, uint32_t len,
+                                        const struct tcpinfo *tcpinfo, dir_state_t *state) {
+    if (!state->version_buf) {
+        return false;
+    }
+
+    feed_version_buf(tvb, pinfo, len, tcpinfo, state);
+
+    if (state->version_done_frame == 0 || pinfo->num < state->version_done_frame) {
+        append_info_fenced(pinfo, "Version fragment");
+        if (pinfo->num != state->match_frame) {
+            proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
+        }
+        return true;
+    }
+
+    if (pinfo->num != state->version_done_frame) {
+        return false;
+    }
+
+    tvbuff_t *ver_tvb =
+        tvb_new_child_real_data(tvb, state->version_buf, state->version_pdu_len, (int)state->version_pdu_len);
+    add_new_data_source(pinfo, ver_tvb, "Reassembled Bitcoin v2 Version");
+    dissect_bitcoinv2_pdu(ver_tvb, pinfo, tree, data);
+    dissect_pdus_from(tvb, pinfo, tree, data, state->version_tail_in_done_frame);
+    return true;
+}
+
 static void dissect_bitcoinv2_detected_matched_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data,
-                                                     uint32_t len, struct tcpinfo *tcpinfo, dir_state_t *state) {
+                                                     uint32_t len, const struct tcpinfo *tcpinfo, dir_state_t *state) {
     uint32_t seg_start = tcpinfo->seq - state->base_seq;
 
     tvbuff_t *hs_tvb = NULL;
@@ -468,63 +521,23 @@ static void dissect_bitcoinv2_detected_matched_frame(tvbuff_t *tvb, packet_info 
         hs_tvb = tvb_new_child_real_data(tvb, state->buf, (unsigned)state->version_off, state->version_off);
         add_new_data_source(pinfo, hs_tvb, "Reassembled Bitcoin v2 Handshake");
     }
-    col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Handshake");
-    col_set_fence(pinfo->cinfo, COL_INFO);
+    append_info_fenced(pinfo, "Handshake");
     dissect_handshake(hs_tvb, tree, state->version_off);
 
     if (seg_start <= (uint32_t)state->version_off) {
-        int seg_vident_off = (int)((uint32_t)state->version_off - seg_start);
-        if (seg_vident_off < (int)len) {
-            tvbuff_t *pdu_tvb = tvb_new_subset_remaining(tvb, seg_vident_off);
-            tcp_dissect_pdus(pdu_tvb, pinfo, tree, true, LENGTH_LEN, get_bitcoinv2_pdu_len, dissect_bitcoinv2_pdu,
-                             data);
-            if (pinfo->desegment_len != 0) {
-                pinfo->desegment_offset += seg_vident_off;
-            }
-        }
+        dissect_pdus_from(tvb, pinfo, tree, data, (uint32_t)state->version_off - seg_start);
         return;
     }
 
-    uint32_t prefix_len = seg_start - (uint32_t)state->version_off;
-    uint32_t ver_pdu_len = (uint32_t)(LENGTH_LEN + HEADER_LEN + read_le24(state->buf + state->version_off) + TAG_LEN);
-
-    if (prefix_len + len >= ver_pdu_len) {
-        uint32_t from_tvb = ver_pdu_len - prefix_len;
-        uint8_t *ver_raw = (uint8_t *)wmem_alloc(pinfo->pool, ver_pdu_len);
-        memcpy(ver_raw, state->buf + state->version_off, prefix_len);
-        if (from_tvb > 0) {
-            tvb_memcpy(tvb, ver_raw + prefix_len, 0, from_tvb);
-        }
-
-        tvbuff_t *ver_tvb = tvb_new_child_real_data(tvb, ver_raw, ver_pdu_len, (int)ver_pdu_len);
-        add_new_data_source(pinfo, ver_tvb, "Reassembled Bitcoin v2 Version");
-        dissect_bitcoinv2_pdu(ver_tvb, pinfo, tree, data);
-
-        if (from_tvb < len) {
-            tvbuff_t *rest_tvb = tvb_new_subset_remaining(tvb, (int)from_tvb);
-            tcp_dissect_pdus(rest_tvb, pinfo, tree, true, LENGTH_LEN, get_bitcoinv2_pdu_len, dissect_bitcoinv2_pdu,
-                             data);
-            if (pinfo->desegment_len != 0) {
-                pinfo->desegment_offset += (int)from_tvb;
-            }
-        }
-
-        return;
-    }
-
+    // version_ident straddled the previous segment into this one
     if (!PINFO_FD_VISITED(pinfo) && !state->version_buf) {
-        state->version_pdu_len = ver_pdu_len;
-        state->version_buf = (uint8_t *)wmem_alloc(wmem_file_scope(), ver_pdu_len);
-        memcpy(state->version_buf, state->buf + state->version_off, prefix_len);
-        tvb_memcpy(tvb, state->version_buf + prefix_len, 0, len);
-        state->version_written = prefix_len + len;
+        init_version_reassembly(state, seg_start);
     }
-    col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Version fragment");
-    col_set_fence(pinfo->cinfo, COL_INFO);
+    dissect_reassembled_version(tvb, pinfo, tree, data, len, tcpinfo, state);
 }
 
-static int dissect_bitcoinv2_detected_before_matched(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data,
-                                                     uint32_t len, struct tcpinfo *tcpinfo, dir_state_t *state) {
+static void dissect_bitcoinv2_detected_before_matched(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t len,
+                                                      const struct tcpinfo *tcpinfo, dir_state_t *state) {
     uint32_t seg_start = tcpinfo->seq - state->base_seq;
     uint32_t seg_end = seg_start + len;
     uint32_t term_off = (uint32_t)(state->version_off - TERMINATOR_LEN);
@@ -536,84 +549,22 @@ static int dissect_bitcoinv2_detected_before_matched(tvbuff_t *tvb, packet_info 
     proto_item *t_root = proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
     proto_tree *t_bitcoinv2 = proto_item_add_subtree(t_root, ett_bitcoinv2);
 
-    {
-        const handshake_slice_bounds_t bounds = {
-            .seg_start = seg_start,
-            .seg_end = seg_end,
-            .field_start = 0,
-            .field_end = ELLIGATOR_KEY_LEN,
-        };
-        add_handshake_slice(t_bitcoinv2, hf_ellswift_key, tvb, &bounds);
-    }
-    {
-        const handshake_slice_bounds_t bounds = {
-            .seg_start = seg_start,
-            .seg_end = seg_end,
-            .field_start = ELLIGATOR_KEY_LEN,
-            .field_end = term_off,
-        };
-        add_handshake_slice(t_bitcoinv2, hf_garbage, tvb, &bounds);
-    }
-    {
-        const handshake_slice_bounds_t bounds = {
-            .seg_start = seg_start,
-            .seg_end = seg_end,
-            .field_start = term_off,
-            .field_end = (uint32_t)state->version_off,
-        };
-        add_handshake_slice(t_bitcoinv2, hf_terminator, tvb, &bounds);
-    }
-}
+    const struct {
+        int hf;
+        uint32_t field_start;
+        uint32_t field_end;
+    } slices[] = {
+        {hf_ellswift_key, 0, ELLIGATOR_KEY_LEN},
+        {hf_garbage, ELLIGATOR_KEY_LEN, term_off},
+        {hf_terminator, term_off, (uint32_t)state->version_off},
+    };
 
-static void dissect_bitcoinv2_detected_after_matched(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data,
-                                                     uint32_t len, struct tcpinfo *tcpinfo, dir_state_t *state) {
-    if (!state->version_buf) {
-        return;
-    }
-
-    if (!PINFO_FD_VISITED(pinfo) && state->version_done_frame == 0) {
-        int32_t srel = (int32_t)(tcpinfo->seq - state->base_seq);
-        if (srel >= state->version_off) {
-            uint32_t rel_ver = (uint32_t)(srel - state->version_off);
-            if (rel_ver < state->version_pdu_len) {
-                uint32_t need = state->version_pdu_len - rel_ver;
-                uint32_t take = len < need ? len : need;
-                tvb_memcpy(tvb, state->version_buf + rel_ver, 0, take);
-                if (rel_ver + take > state->version_written) {
-                    state->version_written = rel_ver + take;
-                }
-                if (state->version_written >= state->version_pdu_len) {
-                    state->version_done_frame = pinfo->num;
-                    state->version_tail_in_done_frame = take;
-                }
-            }
+    for (size_t i = 0; i < array_length(slices); i++) {
+        uint32_t lo = MAX(seg_start, slices[i].field_start);
+        uint32_t hi = MIN(seg_end, slices[i].field_end);
+        if (lo < hi) {
+            proto_tree_add_item(t_bitcoinv2, slices[i].hf, tvb, (int)(lo - seg_start), (int)(hi - lo), ENC_NA);
         }
-    }
-
-    if (state->version_done_frame == 0 || pinfo->num < state->version_done_frame) {
-        col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Version fragment");
-        col_set_fence(pinfo->cinfo, COL_INFO);
-        proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
-        return;
-    }
-
-    if (pinfo->num != state->version_done_frame) {
-        return;
-    }
-
-    tvbuff_t *ver_tvb =
-        tvb_new_child_real_data(tvb, state->version_buf, state->version_pdu_len, (int)state->version_pdu_len);
-    add_new_data_source(pinfo, ver_tvb, "Reassembled Bitcoin v2 Version");
-    dissect_bitcoinv2_pdu(ver_tvb, pinfo, tree, data);
-
-    if (state->version_tail_in_done_frame >= len) {
-        return;
-    }
-
-    tvbuff_t *rest_tvb = tvb_new_subset_remaining(tvb, (int)state->version_tail_in_done_frame);
-    tcp_dissect_pdus(rest_tvb, pinfo, tree, true, LENGTH_LEN, get_bitcoinv2_pdu_len, dissect_bitcoinv2_pdu, data);
-    if (pinfo->desegment_len != 0) {
-        pinfo->desegment_offset += (int)state->version_tail_in_done_frame;
     }
 }
 
@@ -635,29 +586,24 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     // preserves our earlier PDU info if TCP calls us twice on the same frame).
     col_clear(pinfo->cinfo, COL_INFO);
 
-    if (state->version_off >= 0 && pinfo->num == state->match_frame) {
-        dissect_bitcoinv2_detected_matched_frame(tvb, pinfo, tree, data, len, tcpinfo, state);
-    } else if (state->version_off >= 0 && pinfo->num < state->match_frame && state->has_base_seq) {
-        dissect_bitcoinv2_detected_before_matched(tvb, pinfo, tree, data, len, tcpinfo, state);
-    } else if (state->version_off >= 0 && pinfo->num > state->match_frame) {
-        dissect_bitcoinv2_detected_after_matched(tvb, pinfo, tree, data, len, tcpinfo, state);
-        tcp_dissect_pdus(tvb, pinfo, tree, true, LENGTH_LEN, get_bitcoinv2_pdu_len, dissect_bitcoinv2_pdu, data);
-    } else {
-        col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", "Handshake (pending)");
-        col_set_fence(pinfo->cinfo, COL_INFO);
+    if (state->version_off < 0) {
+        append_info_fenced(pinfo, "Handshake (pending)");
         proto_tree_add_item(tree, proto_bitcoinv2, tvb, 0, -1, ENC_NA);
+        return (int)len;
+    }
+
+    if (pinfo->num < state->match_frame) {
+        if (state->has_base_seq) {
+            dissect_bitcoinv2_detected_before_matched(tvb, pinfo, tree, len, tcpinfo, state);
+        }
+    } else if (pinfo->num == state->match_frame) {
+        dissect_bitcoinv2_detected_matched_frame(tvb, pinfo, tree, data, len, tcpinfo, state);
+    } else if (!dissect_reassembled_version(tvb, pinfo, tree, data, len, tcpinfo, state)) {
+        dissect_pdus_from(tvb, pinfo, tree, data, 0);
     }
 
     return (int)len;
 }
-
-/* Heuristic wrapper. The return type of heur_dissector_t differs between
- * Wireshark releases (gboolean in 4.2, bool in 4.4+), so select it by version. */
-#if (WIRESHARK_VERSION_MAJOR > 4) || (WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR >= 3)
-typedef bool heur_result_t;
-#else
-typedef gboolean heur_result_t;
-#endif
 
 static heur_result_t dissect_bitcoinv2_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     if (!data || tvb_captured_length(tvb) == 0) {
