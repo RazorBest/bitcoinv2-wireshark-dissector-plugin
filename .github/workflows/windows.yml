@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: wireshark/install-dir/
-          key: wireshark-${{ runner.os }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
@@ -79,12 +79,8 @@ jobs:
           WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH: ./wireshark/install-dir
         run: cmake --workflow release
 
-      - name: tree install
-        shell: pwsh
-        run: tree install
-
       - name: Upload compiled file
         uses: actions/upload-artifact@v7
         with:
-           name: binary-wireshark-${{ env.WIRESHARK_BRANCH }}
+           name: binary-windows-${{ runner.arch }}-wireshark-${{ env.WIRESHARK_BRANCH }}
            path: install/release/lib/bitcoinv2.dll

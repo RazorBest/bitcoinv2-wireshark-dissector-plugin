@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:   # dry run: builds everything and uploads the zips as a
+                       # normal artifact, but does NOT create a Release
+
+# Read-only by default (the called workflows build third-party code).
+# Only the publish job gets write access.
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    uses: ./.github/workflows/ubuntu.yml
+
+  build-windows:
+    uses: ./.github/workflows/windows.yml
+
+  publish:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      # needed to create the Release
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: binary-*                  # per-Wireshark-version builds only
+          path: artifacts                    # one subdirectory per artifact
+
+      - name: Package and checksum
+        run: |
+          set -euo pipefail
+          mkdir dist
+          tag="${GITHUB_REF_NAME//\//-}"
+          for dir in artifacts/binary-*/; do
+            name=$(basename "$dir")        # e.g. binary-linux-X64-wireshark-release-4.6
+            IFS=- read -r _ os arch _ <<< "$name"
+            case "$arch" in
+              X64)   arch=x86_64 ;;
+              ARM64) arch=arm64 ;;
+              *) echo "Unknown arch in $name"; exit 1 ;;
+            esac
+            [[ $name =~ ([0-9]+\.[0-9]+)$ ]] || { echo "No version in $name"; exit 1; }
+            zip -j "dist/bitcoinv2-${tag}-wireshark-${BASH_REMATCH[1]}-${os}-${arch}.zip" \
+              "$dir"bitcoinv2.*
+          done
+          (cd dist && sha256sum ./*.zip > SHA256SUMS)
+          ls -l dist
+
+      - name: Keep packaged files (dry runs only)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: dist/*
+
+      - name: Publish Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: true     # handy for your first real runs: review, then click Publish
