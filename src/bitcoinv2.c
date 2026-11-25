@@ -1,3 +1,4 @@
+#define WS_BUILD_DLL
 #define WS_LOG_DOMAIN "bitcoinv2"
 
 #include <stdbool.h>
