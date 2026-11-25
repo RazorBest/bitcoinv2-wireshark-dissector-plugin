@@ -1,3 +1,4 @@
+# Given SEARCH_PATH, recursively searches for the wireshark cmake package
 macro(search_wireshark_package_recursively SEARCH_PATH)
     file(GLOB_RECURSE WIRESHARK_CONFIG_FILES
         "${SEARCH_PATH}/WiresharkConfig.cmake"
@@ -32,4 +33,3 @@ macro(search_wireshark_package_recursively SEARCH_PATH)
         NO_DEFAULT_PATH
     )
 endmacro()
-

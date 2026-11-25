@@ -20,6 +20,7 @@ endif()
 
 message(STATUS "Wireshark config dir:  ${Wireshark_DIR}")
 message(STATUS "Wireshark config file: ${Wireshark_CONFIG}")
+message(STATUS "Wireshark lib dir in ${Wireshark_LIB_DIR}")
 
 set(SOURCES src/bitcoinv2.c)
 
@@ -42,23 +43,19 @@ else()
     set(LIBRARY_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-if (Wireshark_FOUND)
 
-    message(STATUS "Wireshark found in ${Wireshark_LIB_DIR}")
-
-    if(NOT Wireshark_PLUGINS_ENABLED)
-        message(WARNING "Wireshark was compiled without support for plugins")
-    endif()
-
-    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-        set(CMAKE_INSTALL_PREFIX "${Wireshark_INSTALL_PREFIX}"
-            CACHE PATH "Installation prefix" FORCE)
-    endif()
-
-    include_directories(${Wireshark_INCLUDE_DIR})
-    link_directories(${Wireshark_LIB_DIR})
-
-    install(TARGETS ${PROJECT_NAME}
-        LIBRARY DESTINATION ${LIBRARY_INSTALL_DESTINATION}
-    )
+if(NOT Wireshark_PLUGINS_ENABLED)
+    message(WARNING "Wireshark was compiled without support for plugins")
 endif()
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${Wireshark_INSTALL_PREFIX}"
+        CACHE PATH "Installation prefix" FORCE)
+endif()
+
+include_directories(${Wireshark_INCLUDE_DIR})
+link_directories(${Wireshark_LIB_DIR})
+
+install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION ${LIBRARY_INSTALL_DESTINATION}
+)
