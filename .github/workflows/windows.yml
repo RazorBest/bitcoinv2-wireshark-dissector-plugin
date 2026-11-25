@@ -35,7 +35,15 @@ jobs:
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
+      - name: Cache compiled wireshark
+        id: wireshark-cache
+        uses: actions/cache@v6
+        with:
+          path: wireshark/install-dir/
+          key: wireshark-${{ runner.os }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
       - name: Checkout Wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           mkdir wireshark
@@ -45,6 +53,7 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Copy custom wireshark build files
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
@@ -52,11 +61,8 @@ jobs:
       - name: Set MSVC command prompt
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Mkdir
-        shell: bash
-        run: mkdir build
-
       - name: Build wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         # Don't change to bash
         shell: pwsh
         run: |
@@ -68,8 +74,10 @@ jobs:
           cmake --install build --prefix ./install-dir --component Development
 
       - name: Build plugin depending on repo wireshark
-        shell: bash
-        run: WIRESHARK_CMAKE_DIR=./wireshark/install-dir/lib/cmake/wireshark/ cmake --workflow release
+        shell: pwsh
+        env:
+          WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH=./wireshark/install-dir
+        run: cmake --workflow release
 
       - name: tree install
         shell: pwsh
