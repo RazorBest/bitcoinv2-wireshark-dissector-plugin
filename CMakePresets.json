@@ -1,104 +1,104 @@
 {
-    "version": 6,
-    "configurePresets": [
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/install/${presetName}"
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Bitcoin v2 (debug)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+        "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Bitcoin v2",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+        "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
+      }
+    },
+    {
+      "name": "release-system",
+      "inherits": "base",
+      "displayName": "Bitcoin v2",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
+        "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}",
+        "INSTALL_ON_SYSTEM": true
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "targets": "install",
+      "jobs": 0
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "targets": "install",
+      "jobs": 0
+    },
+    {
+      "name": "release-system",
+      "configurePreset": "release-system",
+      "targets": "install",
+      "jobs": 0
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "debug",
+      "steps": [
         {
-            "name": "base",
-            "hidden": true,
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "installDir": "${sourceDir}/install/${presetName}"
+          "type": "configure",
+          "name": "debug"
         },
         {
-            "name": "debug",
-            "inherits": "base",
-            "displayName": "Bitcoin v2 (debug)",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
-                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
-            }
-        },
-        {
-            "name": "release",
-            "inherits": "base",
-            "displayName": "Bitcoin v2",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
-                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}"
-            }
-        },
-        {
-            "name": "release-system",
-            "inherits": "base",
-            "displayName": "Bitcoin v2",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "Wireshark_DIR": "$env{WIRESHARK_CMAKE_DIR}",
-                "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}",
-                "INSTALL_ON_SYSTEM": true
-            }
+          "type": "build",
+          "name": "debug"
         }
-    ],
-    "buildPresets": [
+      ]
+    },
+    {
+      "name": "release",
+      "steps": [
         {
-            "name": "debug",
-            "configurePreset": "debug",
-            "targets": "install",
-            "jobs": 0
+          "type": "configure",
+          "name": "release"
         },
         {
-            "name": "release",
-            "configurePreset": "release",
-            "targets": "install",
-            "jobs": 0
-        },
-        {
-            "name": "release-system",
-            "configurePreset": "release-system",
-            "targets": "install",
-            "jobs": 0
+          "type": "build",
+          "name": "release"
         }
-    ],
-    "workflowPresets": [
+      ]
+    },
+    {
+      "name": "release-system",
+      "steps": [
         {
-            "name": "debug",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "debug"
-                },
-                {
-                    "type": "build",
-                    "name": "debug"
-                }
-            ]
+          "type": "configure",
+          "name": "release-system"
         },
         {
-            "name": "release",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "release"
-                },
-                {
-                    "type": "build",
-                    "name": "release"
-                }
-            ]
-        },
-        {
-            "name": "release-system",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "release-system"
-                },
-                {
-                    "type": "build",
-                    "name": "release-system"
-                }
-            ]
+          "type": "build",
+          "name": "release-system"
         }
-    ]
+      ]
+    }
+  ]
 }

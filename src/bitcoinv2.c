@@ -8,22 +8,20 @@
 #include <ws_version.h>
 
 #define WS_VERSION_NUM(maj, min, mic) (((maj) * 10000) + ((min) * 100) + (mic))
-#define WS_VERSION WS_VERSION_NUM(WIRESHARK_VERSION_MAJOR, \
-                                  WIRESHARK_VERSION_MINOR, \
-                                  WIRESHARK_VERSION_MICRO)
+#define WS_VERSION WS_VERSION_NUM(WIRESHARK_VERSION_MAJOR, WIRESHARK_VERSION_MINOR, WIRESHARK_VERSION_MICRO)
 
 // Top-level header: wireshark.h arrived in 3.7/4.0
 #if WS_VERSION >= WS_VERSION_NUM(4, 0, 0)
-  #include <wireshark.h>
+#include <wireshark.h>
 #else
-  #ifdef HAVE_CONFIG_H
-    #include "config.h"
-  #endif
-  #include <stdbool.h>
-  #include <stdint.h>
-  #include <glib.h>
-  #include <ws_symbol_export.h>
-  #include <ws_attributes.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include <glib.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <ws_attributes.h>
+#include <ws_symbol_export.h>
 #endif
 
 #include <epan/dissectors/packet-tcp.h>
@@ -36,11 +34,11 @@
 #endif
 
 #ifndef _U_
-  #if defined(__GNUC__) || defined(__clang__)
-    #define _U_ __attribute__((unused))
-  #else
-    #define _U_
-  #endif
+#if defined(__GNUC__) || defined(__clang__)
+#define _U_ __attribute__((unused))
+#else
+#define _U_
+#endif
 #endif
 
 /*
@@ -72,15 +70,15 @@ WS_DLL_PUBLIC uint32_t plugin_describe(void);
 static const uint8_t version_ident[] = {0x73, 0x00, 0x00, 0x00, 0x00, 'v',  'e',  'r', 's',
                                         'i',  'o',  'n',  0x00, 0x00, 0x00, 0x00, 0x00};
 
-#define VERSION_IDENT_LEN          (sizeof(version_ident))
+#define VERSION_IDENT_LEN (sizeof(version_ident))
 #define VERSION_IDENT_SEARCH_LIMIT 5000
 
 #define ELLIGATOR_KEY_LEN 64
-#define TAG_LEN           16  // Set to 0 if your unencrypted capture omits the AEAD tag
-#define TERMINATOR_LEN    16
+#define TAG_LEN 16  // Set to 0 if your unencrypted capture omits the AEAD tag
+#define TERMINATOR_LEN 16
 #define MIN_HANDSHAKE_LEN (ELLIGATOR_KEY_LEN + TERMINATOR_LEN)
-#define LENGTH_LEN        3
-#define HEADER_LEN        1
+#define LENGTH_LEN 3
+#define HEADER_LEN 1
 
 // IDs that will be filled in by proto_register_bitcoinv2
 static int proto_bitcoinv2 = -1;
@@ -136,9 +134,7 @@ static const char *bip324_short_id_to_cmd(uint8_t id) {
     return NULL;
 }
 
-static uint32_t read_le24(const uint8_t *p) {
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16);
-}
+static uint32_t read_le24(const uint8_t *p) { return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16); }
 
 static bitcoinv2_conv_t *new_bitcoinv2_conv_t(address *src, uint32_t srcport) {
     bitcoinv2_conv_t *st = wmem_new0(wmem_file_scope(), bitcoinv2_conv_t);
@@ -533,8 +529,7 @@ static int dissect_bitcoinv2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
 /* Heuristic wrapper. The return type of heur_dissector_t differs between
  * Wireshark releases (gboolean in 4.2, bool in 4.4+), so select it by version. */
-#if (WIRESHARK_VERSION_MAJOR > 4) || \
-    (WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR >= 3)
+#if (WIRESHARK_VERSION_MAJOR > 4) || (WIRESHARK_VERSION_MAJOR == 4 && WIRESHARK_VERSION_MINOR >= 3)
 typedef bool heur_result_t;
 #else
 typedef gboolean heur_result_t;
