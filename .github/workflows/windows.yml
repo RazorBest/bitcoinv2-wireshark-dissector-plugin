@@ -57,22 +57,23 @@ jobs:
         run: mkdir build
 
       - name: Build wireshark
+        # Don't change to bash
         shell: pwsh
         run: |
           cd wireshark
           cmake --preset build-for-plugin
           cmake --build build
-          cmake --install build --prefix ./install/
+          cmake --install build --prefix ./install-dir/
           # Installs the wireshark cmake package as well
-          cmake --install build --prefix ./install --component Development
+          cmake --install build --prefix ./install-dir --component Development
 
       - name: Build plugin depending on repo wireshark
         shell: bash
-        run: WIRESHARK_CMAKE_DIR=./wireshark/install/lib/cmake/wireshark/ cmake --workflow release
+        run: WIRESHARK_CMAKE_DIR=./wireshark/install-dir/lib/cmake/wireshark/ cmake --workflow release
 
-      - name: ls install
-        shell: bash
-        run: ls install
+      - name: tree install
+        shell: pwsh
+        run: tree install
 
       - name: Move plugin dll
         shell: bash
