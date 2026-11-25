@@ -107,7 +107,7 @@ jobs:
           cmake --install build --prefix ./install --component Development
           # For older versions of wireshark, when the extcap directory is not created
           sed -i 's/set_and_check(Wireshark_EXTCAP_INSTALL_DIR/set(Wireshark_EXTCAP_INSTALL_DIR/' \
-                $(find install -name WiresharkConfig.cmake)
+                "$(find install -name WiresharkConfig.cmake)"
           tree ./install
 
       - name: Build plugin depending on repo wireshark
