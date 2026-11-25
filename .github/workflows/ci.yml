@@ -2,17 +2,21 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
-  inputs:
-    target:
-      description: "Which workflow to run after pre-commit"
-      type: choice
-      default: all
-      options:
-        - all
-        - ubuntu-build
-        - windows-build
+    inputs:
+      target:
+        description: "Which workflow to run after pre-commit"
+        type: choice
+        default: all
+        options:
+          - all
+          - ubuntu-build
+          - windows-build
 
 jobs:
   pre-commit:
