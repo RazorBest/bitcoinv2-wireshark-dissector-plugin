@@ -27,11 +27,6 @@ jobs:
         shell: bash
         run: choco install -y --force --no-progress winflexbison3 --version 2.5.18.20190508
 
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
-        with:
-           vs-version: 16.4
-
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
@@ -40,7 +35,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: wireshark/install-dir/
-          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-removeme
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'

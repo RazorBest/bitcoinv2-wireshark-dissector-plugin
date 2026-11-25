@@ -12,23 +12,33 @@ permissions:
   contents: read
 
 jobs:
-  build-linux:
-    uses: ./.github/workflows/ubuntu.yml
-
-  build-windows:
-    uses: ./.github/workflows/windows.yml
-
   publish:
-    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
+      # needed to list runs and download their artifacts
+      actions: read
       # needed to create the Release
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Find the CI run for this exact commit
+        id: ci
+        run: |
+          set -euo pipefail
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow ci.yml --event pull_request --branch main \
+            --commit "$GITHUB_SHA" --status success \
+            --json databaseId --jq '.[0].databaseId // empty')
+          [ -n "$run_id" ] || { echo "No successful push-to-main CI run for $GITHUB_SHA"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
       - uses: actions/download-artifact@v8
         with:
-          pattern: binary-*                  # per-Wireshark-version builds only
-          path: artifacts                    # one subdirectory per artifact
+          run-id: ${{ steps.ci.outputs.run_id }}
+          github-token: ${{ github.token }}
+          pattern: binary-*
+          path: artifacts
 
       - name: Package and checksum
         run: |
