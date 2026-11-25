@@ -26,14 +26,8 @@
   #include <ws_attributes.h>
 #endif
 
-#include <epan/column-utils.h>
-#include <epan/conversation.h>
 #include <epan/dissectors/packet-tcp.h>
 #include <epan/exceptions.h>
-#include <epan/packet.h>
-#include <epan/proto.h>
-#include <epan/tvbuff.h>
-#include <epan/wmem_scopes.h>
 
 #if defined(__has_include)
 #if __has_include(<wsutil/plugins.h>)
