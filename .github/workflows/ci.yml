@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  inputs:
+    target:
+      description: "Which workflow to run after pre-commit"
+      type: choice
+      default: all
+      options:
+        - all
+        - ubuntu-build
+        - windows-build
+
+jobs:
+  pre-commit:
+    uses: ./.github/workflows/pre-commit.yml
+
+  ubuntu-build:
+    needs: pre-commit
+    uses: ./.github/workflows/ubuntu.yml
+
+  windows-build:
+    needs: pre-commit
+    uses: ./.github/workflows/windows.yml

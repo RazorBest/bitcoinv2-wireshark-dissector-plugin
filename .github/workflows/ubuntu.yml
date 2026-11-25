@@ -6,17 +6,15 @@
 name: Build plug-in on Ubuntu
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_call:
   workflow_dispatch:
 
 jobs:
+  pre-commit:
+    uses: ./.github/workflows/pre-commit.yml
+
   sytem-build:
+    needs: pre-commit
     name: Build plugin based on system-installed wireshark
     runs-on: ubuntu-22.04
     steps:
@@ -41,6 +39,7 @@ jobs:
           path: install/release/lib/bitcoinv2.so
 
   repo-build:
+    needs: pre-commit
     name: Build plugin based on repo-fetched wireshark
     runs-on: ubuntu-22.04
 

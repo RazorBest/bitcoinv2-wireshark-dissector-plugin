@@ -9,7 +9,11 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Includes compile_commands.json in the build directory, which could be used by language servers
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(INSTALL_ON_SYSTEM "If enabled, install the plugin in the default wireshark plugins directory" OFF)
+option(
+    INSTALL_ON_SYSTEM
+    "If enabled, install the plugin in the default wireshark plugins directory"
+    OFF
+)
 
 if(NOT WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH STREQUAL "")
     include("${CMAKE_SOURCE_DIR}/cmake/SearchWiresharkPackageRecursively.cmake")
@@ -27,12 +31,14 @@ set(SOURCES src/bitcoinv2.c)
 # Do not switch to shared. Wireshark needs modules
 add_library(${PROJECT_NAME} MODULE ${SOURCES})
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    VERSION ${PROJECT_VERSION}}
-    PREFIX ""
-    DEFINE_SYMBOL ""
-    C_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
+set_target_properties(
+    ${PROJECT_NAME}
+    PROPERTIES
+        VERSION ${PROJECT_VERSION}}
+        PREFIX ""
+        DEFINE_SYMBOL ""
+        C_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE epan)
@@ -43,19 +49,23 @@ else()
     set(LIBRARY_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-
 if(NOT Wireshark_PLUGINS_ENABLED)
     message(WARNING "Wireshark was compiled without support for plugins")
 endif()
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "${Wireshark_INSTALL_PREFIX}"
-        CACHE PATH "Installation prefix" FORCE)
+    set(CMAKE_INSTALL_PREFIX
+        "${Wireshark_INSTALL_PREFIX}"
+        CACHE PATH
+        "Installation prefix"
+        FORCE
+    )
 endif()
 
 include_directories(${Wireshark_INCLUDE_DIR})
 link_directories(${Wireshark_LIB_DIR})
 
-install(TARGETS ${PROJECT_NAME}
+install(
+    TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${LIBRARY_INSTALL_DESTINATION}
 )
