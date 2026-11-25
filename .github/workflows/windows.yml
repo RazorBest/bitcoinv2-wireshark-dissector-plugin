@@ -23,10 +23,6 @@ jobs:
         run: |
           choco install -y --force --no-progress cmake
 
-      - name: Install winflexbison3
-        shell: bash
-        run: choco install -y --force --no-progress winflexbison3 --version 2.5.18.20190508
-
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
@@ -35,7 +31,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: wireshark/install-dir/
-          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-removeme2
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-removeme3
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
