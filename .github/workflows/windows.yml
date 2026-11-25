@@ -83,11 +83,6 @@ jobs:
         shell: pwsh
         run: tree install
 
-      - name: Move plugin dll
-        shell: bash
-        run: |
-           mv build/run/RelWithDebInfo/plugins/3.6/epan/sap.dll exe/sap.dll
-
       - name: Upload compiled file
         uses: actions/upload-artifact@v7
         with:

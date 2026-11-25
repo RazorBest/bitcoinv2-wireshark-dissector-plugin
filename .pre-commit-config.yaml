@@ -11,10 +11,6 @@ repos:
     rev: 0.29.2
     hooks:
     - id: gersemi
--   repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v23.1.5
-    hooks:
-    -   id: clang-format
     # Lint github actions files
 -   repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
@@ -22,3 +18,10 @@ repos:
     -   id: actionlint
         additional_dependencies:
           - github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.11.1
+-   repo: https://github.com/cpp-linter/cpp-linter-hooks
+    rev: v1.9.0
+    hooks:
+    -   id: clang-format
+        args: [--style=file]
+    -   id: clang-tidy
+        args: [--version=21]
