@@ -9,8 +9,9 @@ on:
   workflow_dispatch:
 
 env:
-   WIRESHARK_BRANCH: release-4.4
-   WIRESHARK_BASE_DIR: C:/wireshark-libs
+  WIRESHARK_BRANCH: release-4.4
+  # Where to download third-party libraries (https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWindows.html)
+  WIRESHARK_BASE_DIR: C:/wireshark-libs
 
 jobs:
   repo-build:
@@ -56,10 +57,7 @@ jobs:
         run: mkdir build
 
       - name: Build wireshark
-        shell: bash
-        env:
-          # Where to download third-party libraries (https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWindows.html)
-          WIRESHARK_BASE_DIR: "wireshark/wireshark-third-party"
+        shell: pwsh
         run: |
           cd wireshark
           cmake --preset build-for-plugin
