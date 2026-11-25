@@ -1,3 +1,4 @@
 build/
 install/
 wireshark/
+compile_commands.json

@@ -38,6 +38,14 @@
         "WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH": "$env{WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH}",
         "INSTALL_ON_SYSTEM": true
       }
+    },
+    {
+      "name": "export-compile-commands",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/debug-compile-commands",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -58,6 +66,13 @@
       "configurePreset": "release-system",
       "targets": "install",
       "jobs": 0
+    },
+    {
+      "name": "export-compile-commands",
+      "configurePreset": "export-compile-commands",
+      "targets": [
+        "export_compile_commands"
+      ]
     }
   ],
   "workflowPresets": [
@@ -97,6 +112,19 @@
         {
           "type": "build",
           "name": "release-system"
+        }
+      ]
+    },
+    {
+      "name": "export-compile-commands",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "export-compile-commands"
+        },
+        {
+          "type": "build",
+          "name": "export-compile-commands"
         }
       ]
     }

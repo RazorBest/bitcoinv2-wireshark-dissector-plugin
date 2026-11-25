@@ -75,3 +75,15 @@ install(
     TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${LIBRARY_INSTALL_DESTINATION}
 )
+
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+    add_custom_target(
+        export_compile_commands
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/compile_commands.json"
+            "${CMAKE_SOURCE_DIR}/compile_commands.json"
+        COMMENT "Exporting compile_commands.json"
+        VERBATIM
+    )
+endif()
