@@ -10,11 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-commit:
-    uses: ./.github/workflows/pre-commit.yml
-
   sytem-build:
-    needs: pre-commit
     name: Build plugin based on system-installed wireshark
     runs-on: ubuntu-22.04
     steps:
@@ -35,11 +31,10 @@ jobs:
       - name: Upload compiled files
         uses: actions/upload-artifact@v7
         with:
-          name: binaries
+          name: binary-system-installed-ubuntu-22.04
           path: install/release/lib/bitcoinv2.so
 
   repo-build:
-    needs: pre-commit
     name: Build plugin based on repo-fetched wireshark
     runs-on: ${{ matrix.runner }}
 

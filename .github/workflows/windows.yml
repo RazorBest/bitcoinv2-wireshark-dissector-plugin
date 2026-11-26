@@ -16,7 +16,26 @@ env:
 jobs:
   repo-build:
     name: Build plugin based on repo-fetched wireshark
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+        wireshark-branch:
+          - master-3.0
+          - master-3.2
+          - release-3.4
+          - release-3.6
+          - release-4.0
+          - release-4.2
+          - release-4.4
+          - release-4.6
+          - release-5.0
+
+    env:
+       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
+
     steps:
       - name: Install CMake
         shell: bash
@@ -35,7 +54,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: wireshark/install-dir/
-          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-removeme4
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
