@@ -22,15 +22,7 @@ jobs:
       matrix:
         runner: [windows-latest, windows-11-arm]
         wireshark-branch:
-          - master-3.0
-          - master-3.2
-          - release-3.4
-          - release-3.6
-          - release-4.0
-          - release-4.2
           - release-4.4
-          - release-4.6
-          - release-5.0
 
     env:
       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
@@ -53,7 +45,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: wireshark/install-dir/
-          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-test1
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
