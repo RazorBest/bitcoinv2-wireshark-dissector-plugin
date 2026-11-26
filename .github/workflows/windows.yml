@@ -27,7 +27,12 @@ jobs:
       matrix:
         runner: [windows-latest, windows-11-arm]
         wireshark-branch:
+          - release-3.6
+          - release-4.0
           - release-4.2
+          - release-4.4
+          - release-4.6
+          - release-5.0
 
     env:
       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
@@ -51,7 +56,7 @@ jobs:
             wireshark/install-dir/
             # The third-party libraries are downloaded only when wireshakr is built
             ${{ env.WIRESHARK_BASE_DIR }}
-          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-test2
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Checkout Wireshark
         if: steps.wireshark-cache.outputs.cache-hit != 'true'
