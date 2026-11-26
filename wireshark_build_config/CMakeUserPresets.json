@@ -87,8 +87,6 @@
 
         "ENABLE_XXHASH": "OFF",
 
-        "ENABLE_ZLIB": "OFF",
-
         "ENABLE_ZLIBNG": "OFF",
 
         "ENABLE_ZSTD": "OFF",
