@@ -9,14 +9,31 @@ on:
   workflow_dispatch:
 
 env:
-  WIRESHARK_BRANCH: release-4.4
   # Where to download third-party libraries (https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWindows.html)
   WIRESHARK_BASE_DIR: C:/wireshark-libs
 
 jobs:
   repo-build:
     name: Build plugin based on repo-fetched wireshark
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+        wireshark-branch:
+          - master-3.0
+          - master-3.2
+          - release-3.4
+          - release-3.6
+          - release-4.0
+          - release-4.2
+          - release-4.4
+          - release-4.6
+          - release-5.0
+
+    env:
+      WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
 
     steps:
       - name: Install CMake
