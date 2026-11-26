@@ -46,7 +46,10 @@ jobs:
         id: wireshark-cache
         uses: actions/cache@v6
         with:
-          path: wireshark/install-dir/
+          path: |
+            wireshark/install-dir/
+            # The third-party libraries are downloaded only when wireshakr is built
+            ${{ env.WIRESHARK_BASE_DIR }}
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}-test1
 
       - name: Checkout Wireshark
