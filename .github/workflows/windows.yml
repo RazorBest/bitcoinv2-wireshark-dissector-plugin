@@ -17,6 +17,11 @@ jobs:
     name: Build plugin based on repo-fetched wireshark
     runs-on: ${{ matrix.runner }}
 
+    defaults:
+      run:
+        # Otherwise, the commands continue to execute regardless of their outcome
+        shell: pwsh -Command "$ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; & '{0}'"
+
     strategy:
       fail-fast: true
       matrix:
