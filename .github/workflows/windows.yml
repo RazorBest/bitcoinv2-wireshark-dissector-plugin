@@ -20,7 +20,7 @@ jobs:
     defaults:
       run:
         # Otherwise, the commands continue to execute regardless of their outcome
-        shell: pwsh -Command "$ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'; if ((Test-Path -LiteralPath variable:\LASTEXITCODE)) { exit $LASTEXITCODE }"
+        shell: pwsh -Command "$ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
 
     strategy:
       fail-fast: true
