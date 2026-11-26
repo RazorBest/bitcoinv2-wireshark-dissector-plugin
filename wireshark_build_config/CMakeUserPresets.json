@@ -93,6 +93,8 @@
 
         "ENABLE_ZSTD": "OFF",
 
+        "ENABLE_LIBXML2": "OFF",
+
         "FETCH_lua": "OFF",
 
         "ENABLE_CCACHE": "ON",
