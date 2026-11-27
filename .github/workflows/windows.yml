@@ -34,6 +34,14 @@ jobs:
           - release-4.2
           - release-4.4
           - release-4.6
+        # Not supported by wireshark
+        exclude:
+          - runner: windows-11-arm
+            wireshark-branch: release-3.4
+          - runner: windows-11-arm
+            wireshark-branch: release-3.6
+          - runner: windows-11-arm
+            wireshark-branch: release-4.0
         include:
           - wireshark-branch: release-3.4
             # the `imp` module was removed in 3.12
@@ -78,6 +86,7 @@ jobs:
           fi
 
       - name: Set up Python ${{ matrix.python-version }}
+        id: setup-python
         if: >-
           steps.wireshark-cache-status.outputs.restored != 'true' &&
           matrix.python-version != ''
@@ -111,7 +120,12 @@ jobs:
         if: steps.wireshark-cache-status.outputs.restored != 'true'
         run: |
           cd wireshark
-          cmake --preset build-for-plugin
+          $cmakeArgs = @("--preset", "build-for-plugin")
+          # CMake searches the python binary in its own unique way, so we help it be less unique
+          if ("${{ steps.setup-python.outputs.python-path }}") {
+            $cmakeArgs += "-DPython3_EXECUTABLE=${{ steps.setup-python.outputs.python-path }}"
+          }
+          cmake @cmakeArgs
           cmake --build build
           cmake --install build --prefix ./install-dir/
           # Installs the wireshark cmake package as well
@@ -121,9 +135,9 @@ jobs:
         uses: actions/cache/save@v6
         if: steps.wireshark-cache-status.outputs.restored != 'true'
         with:
+          # The third-party libraries are downloaded only when wireshark is built
           path: |
             wireshark/install-dir/
-            # The third-party libraries are downloaded only when wireshakr is built
             ${{ env.WIRESHARK_BASE_DIR }}
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
