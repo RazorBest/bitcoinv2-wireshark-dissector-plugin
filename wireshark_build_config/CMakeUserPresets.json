@@ -65,7 +65,7 @@
 
         "ENABLE_OPUS": "OFF",
 
-        "ENABLE_PCAP": "OFF",
+        "ENABLE_PCAP": "ON",
 
         "ENABLE_PKCS11": "OFF",
 
