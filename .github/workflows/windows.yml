@@ -60,6 +60,7 @@ jobs:
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - id: wireshark-cache-status
+        shell: bash
         env:
           MATCHED_KEY: ${{ steps.wireshark-cache.outputs.cache-matched-key }}
         run: |
