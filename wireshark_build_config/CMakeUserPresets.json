@@ -95,6 +95,8 @@
 
         "FETCH_lua": "OFF",
 
+        "PY_ASN2WRS": "${sourceDir}/tools/asn2wrs.py",
+
         "ENABLE_CCACHE": "ON",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       },
