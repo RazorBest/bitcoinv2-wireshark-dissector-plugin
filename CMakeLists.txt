@@ -49,6 +49,10 @@ else()
     set(LIBRARY_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--no-undefined)
+endif()
+
 if(NOT Wireshark_PLUGINS_ENABLED)
     message(WARNING "Wireshark was compiled without support for plugins")
 endif()

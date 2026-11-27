@@ -56,6 +56,29 @@ typedef bool heur_result_t;
 typedef gboolean heur_result_t;
 #endif
 
+#if WIRESHARK_VERSION_MAJOR < 4
+static const uint8_t *ws_memmem(const void *haystack, size_t haystack_len, const void *needle, size_t needle_len) {
+    if (!haystack || !needle || needle_len == 0 || haystack_len < needle_len) {
+        return NULL;
+    }
+    const uint8_t *h = (const uint8_t *)haystack;
+    const uint8_t *n = (const uint8_t *)needle;
+    size_t remaining = haystack_len - needle_len + 1;
+    while (remaining > 0) {
+        const uint8_t *p = (const uint8_t *)memchr(h, n[0], remaining);
+        if (!p) {
+            return NULL;
+        }
+        if (memcmp(p, n, needle_len) == 0) {
+            return p;
+        }
+        remaining -= (size_t)(p - h) + 1;
+        h = p + 1;
+    }
+    return NULL;
+}
+#endif
+
 /*
  * Use WS_DLL_PUBLIC_DEF for exported definitions and WS_DLL_PUBLIC for declarations.
  */
