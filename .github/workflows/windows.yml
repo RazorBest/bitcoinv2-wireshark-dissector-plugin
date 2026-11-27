@@ -59,8 +59,18 @@ jobs:
             ${{ env.WIRESHARK_BASE_DIR }}
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
+      - id: wireshark-cache-status
+        env:
+          MATCHED_KEY: ${{ steps.wireshark-cache.outputs.cache-matched-key }}
+        run: |
+          if [ -n "$MATCHED_KEY" ]; then
+            echo "restored=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "restored=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout Wireshark
-        if: steps.wireshark-cache.outputs.restored != 'true'
+        if: steps.wireshark-cache-status.outputs.restored != 'true'
         shell: bash
         run: |
           mkdir wireshark
@@ -70,12 +80,12 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Copy custom wireshark build files
-        if: steps.wireshark-cache.outputs.restored != 'true'
+        if: steps.wireshark-cache-status.outputs.restored != 'true'
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
       - name: Build wireshark
-        if: steps.wireshark-cache.outputs.restored != 'true'
+        if: steps.wireshark-cache-status.outputs.restored != 'true'
         run: |
           cd wireshark
           cmake --preset build-for-plugin
@@ -86,7 +96,7 @@ jobs:
 
       - name: Save cache of compiled wireshark
         uses: actions/cache/save@v6
-        if: steps.wireshark-cache.outputs.restored != 'true'
+        if: steps.wireshark-cache-status.outputs.restored != 'true'
         with:
           path: |
             wireshark/install-dir/
