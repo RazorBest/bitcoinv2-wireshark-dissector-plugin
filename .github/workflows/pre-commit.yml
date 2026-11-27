@@ -1,0 +1,53 @@
+name: Pre-commit
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  pre-commit-simple:
+    name: pre-commit simple
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+        env:
+          SKIP: clang-tidy
+
+  pre-commit-clang-tidy:
+    name: pre-commit clang-tidy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Install wireshark-dev
+        run: |
+          sudo add-apt-repository ppa:wireshark-dev/stable -y
+          sudo apt-get update -qq
+          export DEBIAN_FRONTEND=noninteractive
+          echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
+          sudo apt-get install -yqq cmake wireshark-dev
+
+      - name: Generate compile_commands.json
+        run: cmake --workflow export-compile-commands
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: clang-tidy --all-files

@@ -1,0 +1,132 @@
+# GitHub Action workflows to build and test the plug-in on Ubuntu
+#
+# Adapted from  https://github.com/ChargePoint/wireshark-v2g/blob/main/.github/workflows/ubuntu.yml
+# Which was adapted from Wireshark's repository https://gitlab.com/wireshark/wireshark/-/tree/master/.github/workflows
+
+name: Build plug-in on Ubuntu
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  sytem-build:
+    name: Build plugin based on system-installed wireshark
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout plug-in
+        uses: actions/checkout@v7
+
+      - name: Install dependencies for a standalone build
+        run: |
+          sudo add-apt-repository ppa:wireshark-dev/stable -y
+          sudo apt-get update -qq
+          export DEBIAN_FRONTEND=noninteractive
+          echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
+          sudo apt-get install -yqq cmake wireshark-dev
+
+      - name: Build plugin standalone
+        run: cmake --workflow release
+
+      - name: Upload compiled files
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-system-installed-ubuntu-22.04
+          path: install/release/lib/bitcoinv2.so
+
+  repo-build:
+    name: Build plugin based on repo-fetched wireshark
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-22.04-arm]
+        wireshark-branch:
+          - master-3.0
+          - master-3.2
+          - release-3.4
+          - release-3.6
+          - release-4.0
+          - release-4.2
+          - release-4.4
+          - release-4.6
+          - release-5.0
+
+    env:
+       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
+
+    steps:
+      - name: Install CMake
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq cmake
+
+      - name: Checkout plug-in
+        uses: actions/checkout@v7
+
+      - name: Check wireshark cache ("exact match only")
+        id: wireshark-cache
+        uses: actions/cache@v6
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          # No, you can't
+          lookup-only: true
+
+      # Please no
+      - name: Restore compiled wireshark
+        if: steps.wireshark-cache.outputs.cache-hit == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
+      - name: Install dependencies for the wireshark build
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq libglib2.0-dev libc-ares-dev libpcap-dev make libgcrypt-dev flex libxml2-dev
+
+      - name: Git clone wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir wireshark
+          cd wireshark
+          git init
+          git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
+          git checkout ${{ env.WIRESHARK_BRANCH }}
+
+      - name: Copy custom wireshark build files
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          cp wireshark_build_config/CMakeUserPresets.json wireshark
+
+      - name: Build wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          cd wireshark
+          cmake --preset build-for-plugin
+          cmake --build build
+          cmake --install build --prefix ./install/
+          # Installs the wireshark cmake package as well
+          cmake --install build --prefix ./install --component Development
+          # For older versions of wireshark, when the extcap directory is not created
+          sed -i 's/set_and_check(Wireshark_EXTCAP_INSTALL_DIR/set(Wireshark_EXTCAP_INSTALL_DIR/' \
+                "$(find install -name WiresharkConfig.cmake)"
+
+      - name: Save cache of compiled wireshark
+        uses: actions/cache/save@v6
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
+      - name: Build plugin depending on repo wireshark
+        run: WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH=./wireshark/install cmake --workflow release
+
+      - name: Upload compiled file
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-linux-${{ runner.arch }}-wireshark-${{ env.WIRESHARK_BRANCH }}
+          path: install/release/lib/bitcoinv2.so

@@ -1,0 +1,27 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+    # Format CMake files
+-   repo: https://github.com/BlankSpruce/gersemi-pre-commit
+    rev: 0.29.2
+    hooks:
+    - id: gersemi
+    # Lint github actions files
+-   repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+    -   id: actionlint
+        additional_dependencies:
+          - github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.11.1
+-   repo: https://github.com/cpp-linter/cpp-linter-hooks
+    rev: v1.9.0
+    hooks:
+    -   id: clang-format
+        args: [--style=file]
+    -   id: clang-tidy
+        args: [--version=21]

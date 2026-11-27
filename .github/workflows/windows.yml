@@ -1,0 +1,162 @@
+# GitHub Action workflows to build and test the plug-in on Windows
+#
+# Adapted from Wireshark's repository https://gitlab.com/wireshark/wireshark/-/tree/master/.github/workflows
+
+name: Build plug-in on Windows
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  # Where to download third-party libraries (https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWindows.html)
+  WIRESHARK_BASE_DIR: C:/wireshark-libs
+
+jobs:
+  repo-build:
+    name: Build plugin based on repo-fetched wireshark
+    runs-on: ${{ matrix.runner }}
+
+    defaults:
+      run:
+        # Otherwise, the commands continue to execute regardless of their outcome
+        # Setting shell: pwsh on a step overwrites this default
+        shell: pwsh -Command "$ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+
+    strategy:
+      fail-fast: true
+      matrix:
+        runner: [windows-latest, windows-11-arm]
+        wireshark-branch:
+          - release-3.4
+          - release-3.6
+          - release-4.0
+          - release-4.2
+          - release-4.4
+          - release-4.6
+        # Not supported by wireshark
+        exclude:
+          - runner: windows-11-arm
+            wireshark-branch: release-3.4
+          - runner: windows-11-arm
+            wireshark-branch: release-3.6
+          - runner: windows-11-arm
+            wireshark-branch: release-4.0
+        include:
+          - wireshark-branch: release-3.4
+            # the `imp` module was removed in 3.12
+            python-version: 3.11
+
+    env:
+      WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
+
+    steps:
+      - name: Install CMake
+        run: |
+          choco install -y --force --no-progress cmake
+
+      - name: Install winflexbison3
+        run: choco install -y --force --no-progress winflexbison3
+
+      - name: Checkout plug-in
+        uses: actions/checkout@v7
+
+      - name: Set MSVC command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+
+      - name: Check wireshark cache ("exact match only")
+        id: wireshark-cache
+        uses: actions/cache@v6
+        with:
+          # The third-party libraries are downloaded only when wireshakr is built
+          path: |
+            wireshark/install-dir/
+            ${{ env.WIRESHARK_BASE_DIR }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          # No, you can't
+          lookup-only: true
+
+      # Please no
+      - name: Restore compiled wireshark
+        if: steps.wireshark-cache.outputs.cache-hit == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          # The third-party libraries are downloaded only when wireshakr is built
+          path: |
+            wireshark/install-dir/
+            ${{ env.WIRESHARK_BASE_DIR }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
+      - name: Set up Python ${{ matrix.python-version }}
+        id: setup-python
+        if: >-
+          steps.wireshark-cache.outputs.cache-hit != 'true' &&
+          matrix.python-version != ''
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify Python version
+        run: python --version
+
+      - name: Checkout Wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir wireshark
+          cd wireshark
+          git init
+          git remote add -t "${{ env.WIRESHARK_BRANCH }}" -f origin https://gitlab.com/wireshark/wireshark.git
+          git checkout ${{ env.WIRESHARK_BRANCH }}
+
+      - name: Patch Wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: ./wireshark_build_config/patch_wireshark.ps1 -Branch "${{ env.WIRESHARK_BRANCH }}"
+
+      - name: Copy custom wireshark build files
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          cp wireshark_build_config/CMakeUserPresets.json wireshark
+
+      - name: Build wireshark
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        run: |
+          cd wireshark
+          $cmakeArgs = @("--preset", "build-for-plugin")
+          # CMake searches the python binary in its own unique way, so we help it be less unique
+          if ("${{ steps.setup-python.outputs.python-path }}") {
+            $cmakeArgs += "-DPython3_EXECUTABLE=${{ steps.setup-python.outputs.python-path }}"
+          }
+          cmake @cmakeArgs
+          cmake --build build
+          cmake --install build --prefix ./install-dir/
+          # Installs the wireshark cmake package as well
+          cmake --install build --prefix ./install-dir --component Development
+          # For older versions of wireshark, when the extcap directory is not created
+          $config = (Get-ChildItem -Path ./install-dir -Filter WiresharkConfig.cmake -Recurse | Select-Object -First 1).FullName
+          (Get-Content -Path $config -Raw).Replace('set_and_check(Wireshark_EXTCAP_INSTALL_DIR', 'set(Wireshark_EXTCAP_INSTALL_DIR') |
+            Set-Content -Path $config -NoNewline
+          tree install-dir /F /A
+
+      - name: Save cache of compiled wireshark
+        uses: actions/cache/save@v6
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        with:
+          # The third-party libraries are downloaded only when wireshark is built
+          path: |
+            wireshark/install-dir/
+            ${{ env.WIRESHARK_BASE_DIR }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+
+      - name: Build plugin depending on repo wireshark
+        env:
+          WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH: ./wireshark/install-dir
+        run: cmake --workflow release
+
+      - name: Upload compiled file
+        uses: actions/upload-artifact@v7
+        with:
+           name: binary-windows-${{ runner.arch }}-wireshark-${{ env.WIRESHARK_BRANCH }}
+           path: install/release/lib/bitcoinv2.dll

@@ -1,0 +1,108 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "build-for-plugin",
+      "displayName": "Local development",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "BUILD_androiddump": "OFF",
+        "BUILD_capinfos": "OFF",
+        "BUILD_captype": "OFF",
+        "BUILD_ciscodump": "OFF",
+        "BUILD_dcerpcidl2wrs": "OFF",
+        "BUILD_dftest": "OFF",
+        "BUILD_dpauxmon": "OFF",
+        "BUILD_dumpcap": "OFF",
+        "BUILD_editcap": "OFF",
+        "BUILD_mergecap": "OFF",
+        "BUILD_mmdbresolve": "OFF",
+        "BUILD_randpkt": "OFF",
+        "BUILD_randpktdump": "OFF",
+        "BUILD_rawshark": "OFF",
+        "BUILD_reordercap": "OFF",
+        "BUILD_sdjournal": "OFF",
+        "BUILD_sharkd": "OFF",
+        "BUILD_sshdump": "OFF",
+        "BUILD_text2pcap": "OFF",
+        "BUILD_tshark": "OFF",
+        "BUILD_udpdump": "OFF",
+        "BUILD_wifidump": "OFF",
+        "BUILD_wireshark": "OFF",
+
+        "ENABLE_AMRNB": "OFF",
+
+        "ENABLE_AMRWB": "OFF",
+
+        "ENABLE_BCG729": "OFF",
+
+        "ENABLE_BROTLI": "OFF",
+
+        "ENABLE_CAP": "ON",
+
+        "ENABLE_CPUINFO": "OFF",
+
+        "ENABLE_GNUTLS": "OFF",
+
+        "ENABLE_ILBC": "OFF",
+
+        "ENABLE_KERBEROS": "OFF",
+
+        "ENABLE_LUA": "ON",
+
+        "ENABLE_LZ4": "OFF",
+
+        "ENABLE_MINIZIP": "OFF",
+
+        "ENABLE_MINIZIPNG": "OFF",
+
+        "ENABLE_NETLINK": "OFF",
+
+        "ENABLE_NGHTTP2": "OFF",
+
+        "ENABLE_NGHTTP3": "OFF",
+
+        "ENABLE_OPUS": "OFF",
+
+        "ENABLE_PCAP": "OFF",
+
+        "ENABLE_PKCS11": "OFF",
+
+        "ENABLE_PLUGINS": "ON",
+
+        "ENABLE_PLUGIN_IFDEMO": "OFF",
+
+        "ENABLE_SBC": "OFF",
+
+        "ENABLE_SINSP": "OFF",
+
+        "ENABLE_SMI": "OFF",
+
+        "ENABLE_SNAPPY": "OFF",
+
+        "ENABLE_SOFTWARE_UPDATE": "OFF",
+
+        "ENABLE_SPANDSP": "OFF",
+
+        "ENABLE_XXHASH": "OFF",
+
+        "ENABLE_ZLIBNG": "OFF",
+
+        "ENABLE_ZSTD": "OFF",
+
+        "ENABLE_LIBXML2": "OFF",
+
+        "FETCH_lua": "OFF",
+
+        "PY_ASN2WRS": "${sourceDir}/tools/asn2wrs.py",
+
+        "ENABLE_CCACHE": "ON",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      },
+      "environment": {
+        "WIRESHARK_VERSION_EXTRA": "-mybuild"
+      }
+    }
+  ]
+}
