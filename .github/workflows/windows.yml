@@ -27,12 +27,10 @@ jobs:
       matrix:
         runner: [windows-latest, windows-11-arm]
         wireshark-branch:
-          - release-3.6
           - release-4.0
           - release-4.2
           - release-4.4
           - release-4.6
-          - release-5.0
 
     env:
       WIRESHARK_BRANCH: ${{ matrix.wireshark-branch }}
@@ -48,9 +46,12 @@ jobs:
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
+      - name: Set MSVC command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Cache compiled wireshark
         id: wireshark-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             wireshark/install-dir/
@@ -59,7 +60,7 @@ jobs:
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Checkout Wireshark
-        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        if: steps.wireshark-cache.outputs.restored != 'true'
         shell: bash
         run: |
           mkdir wireshark
@@ -69,15 +70,12 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Copy custom wireshark build files
-        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        if: steps.wireshark-cache.outputs.restored != 'true'
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
-      - name: Set MSVC command prompt
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Build wireshark
-        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        if: steps.wireshark-cache.outputs.restored != 'true'
         run: |
           cd wireshark
           cmake --preset build-for-plugin
@@ -85,6 +83,16 @@ jobs:
           cmake --install build --prefix ./install-dir/
           # Installs the wireshark cmake package as well
           cmake --install build --prefix ./install-dir --component Development
+
+      - name: Save cache of compiled wireshark
+        uses: actions/cache/save@v6
+        if: steps.wireshark-cache.outputs.restored != 'true'
+        with:
+          path: |
+            wireshark/install-dir/
+            # The third-party libraries are downloaded only when wireshakr is built
+            ${{ env.WIRESHARK_BASE_DIR }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Build plugin depending on repo wireshark
         env:
