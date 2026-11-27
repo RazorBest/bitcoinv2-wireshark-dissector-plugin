@@ -130,6 +130,11 @@ jobs:
           cmake --install build --prefix ./install-dir/
           # Installs the wireshark cmake package as well
           cmake --install build --prefix ./install-dir --component Development
+          # For older versions of wireshark, when the extcap directory is not created
+          $config = (Get-ChildItem -Path ./install-dir -Filter WiresharkConfig.cmake -Recurse | Select-Object -First 1).FullName
+          (Get-Content -Path $config -Raw).Replace('set_and_check(Wireshark_EXTCAP_INSTALL_DIR', 'set(Wireshark_EXTCAP_INSTALL_DIR') |
+            Set-Content -Path $config -NoNewline
+          tree install-dir /F /A
 
       - name: Save cache of compiled wireshark
         uses: actions/cache/save@v6
