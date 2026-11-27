@@ -304,7 +304,7 @@ static void rebase_v1_tree(proto_node *node, tvbuff_t *v1_tvb, tvbuff_t *real_ds
             fi->length = 0;
             // Never hide container nodes (e.g., 0-body messages like verack)
             if (len > 0 && !node->first_child) {
-                proto_item_set_hidden(node);
+                PROTO_ITEM_SET_HIDDEN(node);
             }
         }
 

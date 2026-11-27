@@ -49,8 +49,14 @@ else()
     set(LIBRARY_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(MSVC)
+    target_compile_options(bitcoinv2 PRIVATE /we4013)
+else()
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--no-undefined)
+    target_compile_options(
+        bitcoinv2
+        PRIVATE -Werror=implicit-function-declaration
+    )
 endif()
 
 if(NOT Wireshark_PLUGINS_ENABLED)
