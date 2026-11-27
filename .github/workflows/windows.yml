@@ -20,6 +20,7 @@ jobs:
     defaults:
       run:
         # Otherwise, the commands continue to execute regardless of their outcome
+        # Setting shell: pwsh on a step overwrites this default
         shell: pwsh -Command "$ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
 
     strategy:
@@ -27,6 +28,8 @@ jobs:
       matrix:
         runner: [windows-latest, windows-11-arm]
         wireshark-branch:
+          - release-3.4
+          - release-3.6
           - release-4.0
           - release-4.2
           - release-4.4
