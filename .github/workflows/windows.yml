@@ -100,7 +100,7 @@ jobs:
 
       - name: Patch Wireshark
         if: steps.wireshark-cache-status.outputs.restored != 'true'
-        run: ./wireshark_build_config/patch-wireshark.ps1 -Branch "${{ env.WIRESHARK_BRANCH }}"
+        run: ./wireshark_build_config/patch_wireshark.ps1 -Branch "${{ env.WIRESHARK_BRANCH }}"
 
       - name: Copy custom wireshark build files
         if: steps.wireshark-cache-status.outputs.restored != 'true'
