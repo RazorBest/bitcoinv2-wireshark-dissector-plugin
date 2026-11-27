@@ -63,32 +63,36 @@ jobs:
 
       - name: Set MSVC command prompt
         uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Cache compiled wireshark
-        id: wireshark-cache
-        uses: actions/cache/restore@v6
         with:
+          arch: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+
+      - name: Check wireshark cache ("exact match only")
+        id: wireshark-cache
+        uses: actions/cache@v6
+        with:
+          # The third-party libraries are downloaded only when wireshakr is built
           path: |
             wireshark/install-dir/
-            # The third-party libraries are downloaded only when wireshakr is built
             ${{ env.WIRESHARK_BASE_DIR }}
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          # No, you can't
+          lookup-only: true
 
-      - id: wireshark-cache-status
-        shell: bash
-        env:
-          MATCHED_KEY: ${{ steps.wireshark-cache.outputs.cache-matched-key }}
-        run: |
-          if [ -n "$MATCHED_KEY" ]; then
-            echo "restored=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "restored=false" >> "$GITHUB_OUTPUT"
-          fi
+      # Please no
+      - name: Restore compiled wireshark
+        if: steps.wireshark-cache.outputs.cache-hit == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          # The third-party libraries are downloaded only when wireshakr is built
+          path: |
+            wireshark/install-dir/
+            ${{ env.WIRESHARK_BASE_DIR }}
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Set up Python ${{ matrix.python-version }}
         id: setup-python
         if: >-
-          steps.wireshark-cache-status.outputs.restored != 'true' &&
+          steps.wireshark-cache.outputs.cache-hit != 'true' &&
           matrix.python-version != ''
         uses: actions/setup-python@v7
         with:
@@ -98,7 +102,7 @@ jobs:
         run: python --version
 
       - name: Checkout Wireshark
-        if: steps.wireshark-cache-status.outputs.restored != 'true'
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           mkdir wireshark
@@ -108,16 +112,16 @@ jobs:
           git checkout ${{ env.WIRESHARK_BRANCH }}
 
       - name: Patch Wireshark
-        if: steps.wireshark-cache-status.outputs.restored != 'true'
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: ./wireshark_build_config/patch_wireshark.ps1 -Branch "${{ env.WIRESHARK_BRANCH }}"
 
       - name: Copy custom wireshark build files
-        if: steps.wireshark-cache-status.outputs.restored != 'true'
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: |
           cp wireshark_build_config/CMakeUserPresets.json wireshark
 
       - name: Build wireshark
-        if: steps.wireshark-cache-status.outputs.restored != 'true'
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         run: |
           cd wireshark
           $cmakeArgs = @("--preset", "build-for-plugin")
@@ -138,7 +142,7 @@ jobs:
 
       - name: Save cache of compiled wireshark
         uses: actions/cache/save@v6
-        if: steps.wireshark-cache-status.outputs.restored != 'true'
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
         with:
           # The third-party libraries are downloaded only when wireshark is built
           path: |

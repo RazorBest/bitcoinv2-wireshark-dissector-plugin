@@ -65,9 +65,19 @@ jobs:
       - name: Checkout plug-in
         uses: actions/checkout@v7
 
-      - name: Cache compiled wireshark
+      - name: Check wireshark cache ("exact match only")
         id: wireshark-cache
         uses: actions/cache@v6
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
+          # No, you can't
+          lookup-only: true
+
+      # Please no
+      - name: Restore compiled wireshark
+        if: steps.wireshark-cache.outputs.cache-hit == 'true'
+        uses: actions/cache/restore@v6
         with:
           path: wireshark/install/
           key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
@@ -104,7 +114,13 @@ jobs:
           # For older versions of wireshark, when the extcap directory is not created
           sed -i 's/set_and_check(Wireshark_EXTCAP_INSTALL_DIR/set(Wireshark_EXTCAP_INSTALL_DIR/' \
                 "$(find install -name WiresharkConfig.cmake)"
-          tree ./install
+
+      - name: Save cache of compiled wireshark
+        uses: actions/cache/save@v6
+        if: steps.wireshark-cache.outputs.cache-hit != 'true'
+        with:
+          path: wireshark/install/
+          key: wireshark-${{ runner.os }}-${{ runner.arch }}-${{ env.WIRESHARK_BRANCH }}-${{ hashFiles('wireshark_build_config/**') }}
 
       - name: Build plugin depending on repo wireshark
         run: WIRESHARK_CMAKE_PACKAGE_SEARCH_PATH=./wireshark/install cmake --workflow release
